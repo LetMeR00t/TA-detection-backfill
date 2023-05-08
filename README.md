@@ -139,7 +139,7 @@ A custom alert action named "Run the next backfill" is executed to process as ma
 
 # Credits
 
-This application was largely inspired from the [Splunk re-run app](https://github.com/murchisd/splunk_re-run_app) made by Donald Murchison
+This application was largely inspired from the [Splunk rerun app](https://github.com/murchisd/splunk_rerun_app) made by Donald Murchison
 
 [Repeat icons created by Freepik - Flaticon](https://www.flaticon.com/free-icons/repeat)
 
