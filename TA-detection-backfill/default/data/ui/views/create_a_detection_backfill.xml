@@ -1,0 +1,137 @@
+<form version="1.1">
+  <label>➕Create a detection backfill</label>
+  <init>
+    <unset token="execute_yes"></unset>
+  </init>
+  <fieldset submitButton="false"></fieldset>
+  <row>
+    <panel id="panel_title1">
+      <title>1. Calculate all (re)dispatch times</title>
+      <input id="input_outage_period" type="time" token="outage_period">
+        <label>Outage period (only static period)</label>
+        <default>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </default>
+      </input>
+      <input id="input_savedsearches_regex" type="text" token="savedsearches_regex">
+        <label>Savedsearches regex pattern</label>
+      </input>
+      <table>
+        <title>Select your outage period (the period during which the detections did not work) and identify the pattern of saved searches you wish to perform during this break period. This panel will generate all the periods on which the savedsearches need to be run indicated with the "Dispatch Time" field and a "Comment" about its value. 🛑 In case of error, please check the issue on the "Audit logs" dashboard</title>
+        <search>
+          <done>
+            <set token="job_1">$job.sid$</set>
+          </done>
+          <query>| makeresults
+| eval outage_period_earliest = "$outage_period.earliest$", outage_period_latest = "$outage_period.latest$", savedsearches_regex = "$savedsearches_regex$"
+| script backfill_detection_evaluate_savedsearches_to_rerun
+| eval app_formatted = app, savedsearch_formatted = savedsearch, et = if(match(et,"^\d+$$"),strftime(et,"(static) %Y-%m-%d %H:%M:%S %z"),et), lt = if(match(lt,"^\d+$$"),strftime(lt,"(static) %Y-%m-%d %H:%M:%S %z"),lt), dispatch_time_formatted = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z")
+| rename app_formatted as "App", savedsearch_formatted as "Savedsearch (Ss)", et as "Ss: earliest", lt as "Ss: latest", cron as "Ss: cron", dispatch_time_formatted as "Dispatch time", comment as Comment</query>
+          <earliest>$outage_period.earliest$</earliest>
+          <latest>$outage_period.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Savedsearch (ss)">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <fields>["App","Savedsearch (Ss)","Ss: earliest","Ss: latest","Ss: cron","Dispatch time","Comment"]</fields>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel id="panel_title2">
+      <title>2. Add results to the backlog for processing</title>
+      <input type="text" token="batch_name">
+        <label>Batch name</label>
+      </input>
+      <input type="dropdown" token="batch_priority">
+        <label>Batch priority</label>
+        <choice value="0">Highest (0)</choice>
+        <choice value="1">High (1)</choice>
+        <choice value="2">Medium (2)</choice>
+        <choice value="3">Low (3)</choice>
+        <choice value="4">Lowest (4)</choice>
+      </input>
+      <input type="radio" token="execute">
+        <label>Execute (add to the backlog)</label>
+        <choice value="0">No</choice>
+        <choice value="1">Yes</choice>
+        <default>0</default>
+        <change>
+          <condition value="1">
+            <set token="execute_yes">1</set>
+          </condition>
+          <condition>
+            <unset token="execute_yes"></unset>
+          </condition>
+        </change>
+      </input>
+      <table>
+        <title>Once the below search is run, it will output the same events representing which tasks were added into into the backlog</title>
+        <search>
+          <query>| loadjob $job_1$
+| eval execute = "$execute_yes$"
+| table app, savedsearch, dispatch_time
+| sendalert detection_backfill_add_a_backfill_to_the_backlog param.batch_name="$batch_name$" param.batch_priority="$batch_priority$"
+| rename app as "App", savedsearch as "Savedsearch", dispatch_time as "Dispatch time"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row depends="$alwaysHideCSSPanel$">
+    <panel>
+      <html>
+        <style>
+          #panel_title1 .dashboard-panel .panel-title {
+            background:#469F23 !important;
+            color:white !important;
+            font-size: 2em !important;
+            text-align: center !important;
+            font-weight: bold !important;
+          }
+          
+          #panel_title2 .dashboard-panel .panel-title {
+            background:#0099E0 !important;
+            color:white !important;
+            font-size: 2em !important;
+            text-align: center !important;
+            font-weight: bold !important;
+          }
+          
+          #input_outage_period label {
+            background-color: #B10202;
+            color:white !important;
+            font-weight: bold !important;
+            text-align: center !important;
+          }
+
+          #input_savedsearches_regex label {
+            background-color: #BFE1F6;
+            text-align: center !important;
+          }
+        </style>
+      </html>
+    </panel>
+  </row>
+</form>

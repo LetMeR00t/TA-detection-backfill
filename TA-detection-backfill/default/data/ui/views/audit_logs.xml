@@ -1,0 +1,283 @@
+<form version="1.1">
+  <label>📖 Audit logs</label>
+  <description>This dashboard is used to monitor audit logs from scripts</description>
+  <fieldset submitButton="false">
+    <input type="time" token="time">
+      <label>Time</label>
+      <default>
+        <earliest>-4h@m</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="dropdown" token="log_level">
+      <label>Log level</label>
+      <choice value="*">Any</choice>
+      <choice value="INFO">INFO</choice>
+      <choice value="WARNING">WARNING</choice>
+      <choice value="ERROR">ERROR</choice>
+      <default>*</default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>[Audit logs] Jobs history (still existing in the history) - ⚠️ Not linked to the selected time</title>
+      <table>
+        <title>In the case of backfilled savedsearches, the common SID can't be linked between the rescheduler and the backfills but the order shown below should help to identify what it's linked. Be aware also that any search run using the REST API directly will be considered as a backfill in this view. Be aware also that this view is the direct job history (short term) so if you want to go in the past, you should take see the other panel on the internal indexes</title>
+        <search>
+          <query>| rest /services/search/jobs count=0 splunk_server=local
+| rename "eai:acl.app" as app
+| search ([| loadjob $sid_schedulers$] OR sid="detection_backfill*" OR provenance="rest")
+| sort 0 -published
+| eval type = case(match(sid,"^detection_backfill") OR provenance="rest","REST API search",match(search,"detection_backfill_run_the_next_backfill") OR match(label,"Run the next scheduled detection backfill"),"Detection Backfill scheduler",1==1,"Audit"), runDuration = round(runDuration,2), common_sid = replace(replace(replace(sid,"^detection_backfill_",""),"____.*$$",""),".*_at_(\d+)_.*","\1")
+| table app, label, author, sid, common_sid, type, dispatchState, runDuration, published, updated
+| rename app as "App", author as "Owner", common_sid as "Pivot", sid as "SID", type as "Type", label as "Name", "dispatchState" as "Status", runDuration as "Duration", published as Published, updated as Updated</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"FAILED":#D41F1F,"DONE":#118832,"RUNNING":#CBA700}</colorPalette>
+        </format>
+        <format type="color" field="Type">
+          <colorPalette type="map">{"REST API search":#602CA1,"Detection Backfill scheduler":#0099E0}</colorPalette>
+        </format>
+        <format type="color" field="SID (grouped by common SID)">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="number" field="Duration">
+          <option name="unit">s</option>
+        </format>
+        <format type="color" field="Pivot">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>[Audit logs] Jobs history from the internal logs</title>
+      <table>
+        <search>
+          <query>(index=_internal sourcetype=scheduler 
+    [loadjob $sid_schedulers_internal$ | table sid]) OR (index=_audit action=search user!=splunk-system-user provenance=rest event_count!="" [loadjob $sid_schedulers_internal$ | table search_id])
+| eval sid = coalesce(sid,replace(search_id,"'","")), common_sid = replace(replace(replace(sid,"^detection_backfill_",""),"____.*$$",""),".*_at_(\d+)_.*","\1"), dispatch_time = coalesce(dispatch_time, exec_time), run_time = coalesce(run_time, total_run_time), dispatch_time = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z"), scheduled_time = strftime(scheduled_time,"%Y-%m-%d %H:%M:%S %z"), status=coalesce(status,info)
+| table _time, sourcetype, app, savedsearch_name, user, sid, common_sid, scheduled_time, dispatch_time, run_time, status, result_count
+| sort 0 -_time
+| rename app as "App", sourcetype, as "Sourcetype", savedsearch_name as "Savedsearch", user as "User", sid as "SID", common_sid as "Pivot", scheduled_time as "Scheduled time", dispatch_time as "Dispatch time", run_time as "Duration", status as "Status", result_count as "Result count"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="number" field="Duration">
+          <option name="unit">s</option>
+        </format>
+        <format type="color" field="Common SID">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"success":#118832,"failed":#D41F1F,"completed":#55C169}</colorPalette>
+        </format>
+        <format type="color" field="Pivot">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="Sourcetype">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>[Audit logs] Alert actions triggered from the backfill searches from the internal logs</title>
+      <table>
+        <search>
+          <query>(index=_internal sourcetype=splunkd "Invoking modular alert") OR ((index=_* OR index=cim_*) sourcetype="modular_alerts:*")
+    [loadjob $sid_schedulers_internal$ | table sid]
+| rex field=_raw " (?&lt;type&gt;\w+) pid\=.*\| (?&lt;signature2&gt;.*)"
+| eval common_sid = replace(replace(replace(sid,"^detection_backfill_",""),"____.*$$",""),".*_at_(\d+)_.*","\1"), dispatch_time = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z"), scheduled_time = strftime(scheduled_time,"%Y-%m-%d %H:%M:%S %z"), action = coalesce(action,signature,signature2)
+| table _time, sourcetype, app, sid, common_sid, action
+| sort 0 -_time
+| rename app as "App", sourcetype as "Sourcetype", sid as "SID", common_sid as "Pivot", action as Action</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Common SID">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="Pivot">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>[Audit logs] Custom commands regarding Detection Backfill</title>
+      <table>
+        <search>
+          <query>(index=_* OR index=cim_*) source="*command_detection_backfill_*.log"
+| rex field=_raw " (?&lt;type&gt;\w+)\t(?&lt;location&gt;[^\-]+) \- (?&lt;signature&gt;.*(?:\[)(?&lt;order&gt;\d+)(?:\])?.*)?"
+| search type="$log_level$"
+| eval signature = coalesce(signature,_raw), command = case(match(source,"evaluate_savedsearches_to_rerun"),"Evaluate savedsearches to rerun",1==1,"?")
+| table _time, command, type, signature
+| sort 0 -_time -order
+| rename command as "Command", type as "Type", signature as "Message"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">30</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Type">
+          <colorPalette type="map">{"DEBUG":#602CA1,"INFO":#0099E0,"WARNING":#CBA700,"ERROR":#D41F1F}</colorPalette>
+        </format>
+        <format type="color" field="Command">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>[Audit logs] Modular alerts regarding Detection Backfill (Custom Alert Action)</title>
+      <table>
+        <search>
+          <query>(index=_* OR index=cim_*) sourcetype="modular_alerts:detection_backfill*"
+| rex field=_raw " (?&lt;type&gt;\w+) pid\=.*\| (?&lt;signature2&gt;.*(?:\[sid=)(?&lt;sid_log&gt;[^\]]+)(?:\])?(?:\[)(?&lt;order&gt;\d+)(?:\])?.*)?"
+| search type="$log_level$"
+| eval signature = coalesce(signature,signature2,_raw), sid = coalesce(sid,sid_log), action_type = case(match(sourcetype,"run_the_next_backfill"),"Run the next backfill",match(sourcetype,"add_a_backfill_to_the_backlog"),"Add a backfill to the backlog",1==1,"?")
+| eval signature = replace(signature,"\[sid=[^\]]+\]","")
+| sort 0 _time order
+| delta _time as delta_time
+| streamstats current=f window=1 last(pid) as prev_pid
+| eval delta_time = if(pid==prev_pid,case(delta_time&lt;=0.002,"|",1==1,delta_time),"- (New PID)")
+| sort 0 -_time -order
+| table _time, delta_time, action_type, pid, sid, type, signature
+| rename delta_time as "ΔTime", action_type as "Action type" pid as PID, sid as SID, type as "Type", signature as "Message"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">30</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Type">
+          <colorPalette type="map">{"DEBUG":#602CA1,"INFO":#0099E0,"WARN":#CBA700,"ERROR":#D41F1F}</colorPalette>
+        </format>
+        <format type="color" field="PID">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="ΔTime">
+          <colorPalette type="list">[#118832,#CBA700,#D94E17,#D41F1F]</colorPalette>
+          <scale type="threshold">0,5,10</scale>
+        </format>
+        <format type="color" field="Action type">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row depends="$debug$">
+    <panel>
+      <title>[DEBUG] Find job SIDs related to the Detection Backfill scheduler in the Jobs history</title>
+      <table>
+        <search>
+          <done>
+            <set token="sid_schedulers">$job.sid$</set>
+          </done>
+          <query>| rest /services/search/jobs count=0 splunk_server=local
+| rename "eai:acl.app" as app
+| search app="TA-detection-backfill" AND search!="| rest /services/search/jobs*"
+| eval type = case(match(search,"\| sendalert detection_backfill_run_the_next_backfill") OR match(label,"Run the next scheduled detection backfill"),"Rescheduler",1==1,"Audit")
+| search type="Rescheduler"
+| table sid</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">5</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row depends="$debug$">
+    <panel>
+      <title>[DEBUG] Find job SIDs related to the Detection Backfill scheduler in the internal logs</title>
+      <table>
+        <search>
+          <done>
+            <set token="sid_schedulers_internal">$job.sid$</set>
+          </done>
+          <query>(index=_* OR index=cim_*) sourcetype="modular_alerts:detection_backfill*" "Job SID * dispatched"
+| rex field=_raw " Job SID '(?&lt;sid_job&gt;.*)' dispatched"
+| table sid_job
+| eval search_id = "'"+sid_job+"'"
+| rename sid_job as sid</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">5</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

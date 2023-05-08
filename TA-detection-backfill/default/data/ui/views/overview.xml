@@ -1,0 +1,213 @@
+<form version="1.1">
+  <label>Overview</label>*<fieldset submitButton="false">
+    <input type="time" token="time">
+      <label>Time</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>[Audit logs] Detection backfills done over the period</title>
+      <single>
+        <search>
+          <query>| makeresults
+| eval text = "$total_searches$"
+| table text</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="height">162</option>
+        <option name="numberPrecision">0</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="rangeValues">[0,30,70,100]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+        <option name="trendColorInterpretation">standard</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">0</option>
+        <option name="useThousandSeparators">1</option>
+      </single>
+    </panel>
+    <panel>
+      <title>[Backlog] Remaining backfills on the backlog to be rerun</title>
+      <single>
+        <search>
+          <query>| inputlookup detection_backfill_backlog.csv 
+| eventstats count
+| table count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="height">162</option>
+        <option name="numberPrecision">0</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="rangeValues">[0,30,70,100]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+        <option name="trendColorInterpretation">standard</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">0</option>
+        <option name="useThousandSeparators">1</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>[Audit logs] Backfills created from the application</title>
+      <table>
+        <search>
+          <query>(index=_* OR index=cim_*) sourcetype="modular_alerts:detection_backfill_run_the_next_backfill" TERM("CAA-RTNB-050")
+| rex field=_raw " (?&lt;type&gt;\w+) pid\=.*\| (?&lt;signature2&gt;.*(?:\[sid=)(?&lt;sid_log&gt;[^\]]+)(?:\])?(?:\[)(?&lt;order&gt;\d+)(?:\])?(?:\[)(?&lt;code_id&gt;[A-z0-9\-]+)(?:\]) Job for the savedsearch '(?&lt;app_savedsearch&gt;[^']+)'.*Job SID '(?&lt;job_sid&gt;[^']+)' dispatched from backfill uid '(?&lt;bf_uid&gt;[^']+)', batch '(?&lt;bf_batch_name&gt;[^']+)' \((?&lt;bf_batch_id&gt;[^']+)\))?"
+| table _time, app_savedsearch, bf_batch_id, bf_batch_name, bf_uid, job_sid
+| sort 0 -_time
+| rename app_savedsearch as "App/Savedsearch", bf_batch_id as "Batch ID", bf_batch_name as "Batch name", bf_uid as "Backfill UID", job_sid as "Job SID created"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Batch ID">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="Batch name">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>[Audit logs] Jobs history from the internal logs</title>
+      <table>
+        <title>$total_searches$ backfills were done over the period</title>
+        <search>
+          <done>
+            <set token="total_searches">$job.resultCount$</set>
+          </done>
+          <query>index=_audit action=search user!=splunk-system-user provenance=rest event_count!="" [loadjob $sid_schedulers_internal$ | table search_id]
+| eval sid = coalesce(sid,replace(search_id,"'","")), dispatch_time = coalesce(dispatch_time, exec_time), search_et = strftime(search_et,"%Y-%m-%d %H:%M:%S %z"), search_lt = strftime(search_lt,"%Y-%m-%d %H:%M:%S %z")
+| table _time, sourcetype, app, savedsearch_name, user, sid, search_et, search_lt, total_run_time, info, result_count
+| sort 0 -_time
+| rename app as "App", sourcetype, as "Sourcetype", savedsearch_name as "Savedsearch", user as "User", sid as "SID", search_et as "Search earliest time", search_lt as "Search latest time", total_run_time as "Duration", info as "Status", result_count as "Result count"</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="number" field="Duration">
+          <option name="unit">s</option>
+        </format>
+        <format type="color" field="Common SID">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"success":#118832,"failed":#D41F1F,"completed":#55C169}</colorPalette>
+        </format>
+        <format type="color" field="Savedsearch">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="App">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>[Backlog] Next 5 backfills to be rerun</title>
+      <table>
+        <search>
+          <query>| inputlookup detection_backfill_backlog.csv
+| head 5
+| eval dispatch_time = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z"), bf_created_time = strftime(bf_created_time,"%Y-%m-%d %H:%M:%S %z")
+| table bf_batch_name, bf_batch_id, bf_priority, app, savedsearch, dispatch_time, bf_created_time, bf_created_author
+| rename app as "App", savedsearch as "Savedsearch", bf_batch_id as "Batch ID", bf_batch_name as "Batch name", bf_created_author as "Batch created by", bf_created_time as "Batch created on", bf_priority as "Priority", dispatch_time as "Will be rerun on (dispatch time)"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Priority">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="Batch ID">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$debug$">
+      <title>[DEBUG] Find job SIDs related to the Detection Backfill scheduler in the internal logs</title>
+      <table>
+        <search>
+          <done>
+            <set token="sid_schedulers_internal">$job.sid$</set>
+          </done>
+          <query>(index=_* OR index=cim_*) sourcetype="modular_alerts:detection_backfill*" "Job SID * dispatched"
+| rex field=_raw " Job SID '(?&lt;sid_job&gt;.*)' dispatched"
+| table sid_job
+| eval search_id = "'"+sid_job+"'"
+| rename sid_job as sid</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">5</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

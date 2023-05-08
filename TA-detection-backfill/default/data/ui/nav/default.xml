@@ -1,0 +1,12 @@
+<nav color="#6354B2">
+  <view name="overview" default="true" label="Overview" />
+  <view name="manage_the_backlog" />
+  <view name="create_a_detection_backfill" />
+  <view name="audit_logs"/>
+  <view name="configuration"/>
+  <collection label="Splunk App">
+    <view name="search"/>
+    <view name="alerts"/>
+    <view name="dashboards"/>
+  </collection>
+</nav>

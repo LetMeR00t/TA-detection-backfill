@@ -1,0 +1,3 @@
+<a href="https://www.flaticon.com/free-icons/repeat" title="repeat icons">Repeat icons created by Freepik - Flaticon</a>
+
+Inspired from the Splunk application "Splunk Rerun" (https://github.com/murchisd/splunk_rerun_app)
