@@ -9,7 +9,7 @@ import sys
 import datetime
 import tzlocal
 import splunklib.client as client
-from common import LoggerFile, Backlog
+from common import LoggerFile, Backlog, RelativeTime
 
 def process_event(helper, *args, **kwargs):
     """
@@ -77,11 +77,13 @@ def process_event(helper, *args, **kwargs):
     for event in events:
         counter += 1
 
+    logger_file.info("002","Counter set to {0}. Will process the first {0} elements of the backlog...".format(str(counter)))
+
     # Get next task
     tasks = backlog.next_tasks(counter)
 
     if tasks == []:
-        logger_file.info("002","Backlog is empty, nothing to rerun.")
+        logger_file.info("003","Backlog is empty, nothing to rerun.")
 
     for task in tasks:
         
@@ -111,8 +113,14 @@ def process_event(helper, *args, **kwargs):
 
         logger_file.info("020","Job for the savedsearch '"+app+"/"+savedsearch_name+"' will be dispatched with a reference time set to "+dispatch_time_readable+" ("+str(dispatch_time)+")...")
 
+        # Get earliest dispatch time
+        earliest_time = RelativeTime(savedsearch['content']['dispatch.earliest_time'],dispatch_time,logger=logger).datetime_calculated.timestamp()
+
+        # Get latest dispatch time
+        latest_time = RelativeTime(savedsearch['content']['dispatch.latest_time'],dispatch_time,logger=logger).datetime_calculated.timestamp()
+
         # Prepare parameters
-        dispatch_kwargs = {"dispatch.now": str(dispatch_time), "force_dispatch": True}
+        dispatch_kwargs = {"dispatch.earliest_time": str(earliest_time), "dispatch.latest_time": str(latest_time), "force_dispatch": True}
 
         # Check if triggers need to be activated
         if trigger == "1":
@@ -129,7 +137,7 @@ def process_event(helper, *args, **kwargs):
             logger_file.error("040","The savedsearch '"+app+"/"+savedsearch_name+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information")
             sys.exit(40)
 
-        logger_file.info("050","Job for the savedsearch '"+app+"/"+savedsearch_name+"' dispatched on the "+dispatch_time_readable+" ("+str(dispatch_time)+") was created. Job SID '"+job.sid+"' dispatched from backfill uid '"+task["bf_uid"]+"', batch '"+task["bf_batch_name"].replace("'","\"")+"' ("+task["bf_batch_id"]+")")
+        logger_file.info("050","Job for the savedsearch '"+app+"/"+savedsearch_name+"' dispatched as if the current time was "+dispatch_time_readable+" ("+str(dispatch_time)+") was created. Job SID '"+job.sid+"' dispatched from backfill uid '"+task["bf_uid"]+"', batch '"+task["bf_batch_name"].replace("'","\"")+"' ("+task["bf_batch_id"]+")")
 
         # Logout from Splunk
         spl.logout()
