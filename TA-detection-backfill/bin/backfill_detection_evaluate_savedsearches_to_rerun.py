@@ -7,7 +7,7 @@ import splunk.Intersplunk
 import re
 import sys
 import globals
-from common import Settings, LoggerFile, RelativeTime
+from common import Settings, LoggerFile
 from ta_logging import setup_logging
 import splunklib.client as client
 import datetime
