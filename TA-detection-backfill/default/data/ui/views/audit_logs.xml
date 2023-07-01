@@ -17,6 +17,12 @@
       <choice value="ERROR">ERROR</choice>
       <default>*</default>
     </input>
+    <input type="radio" token="show_sid">
+      <label>Show jobs SID (improves reading)</label>
+      <choice value="0">False</choice>
+      <choice value="1">True</choice>
+      <default>0</default>
+    </input>
   </fieldset>
   <row>
     <panel>
@@ -29,6 +35,7 @@
 | search ([| loadjob $sid_schedulers$] OR sid="detection_backfill*" OR provenance="rest")
 | sort 0 -published
 | eval type = case(match(sid,"^detection_backfill") OR provenance="rest","REST API search",match(search,"detection_backfill_run_the_next_backfill") OR match(label,"Run the next scheduled detection backfill"),"Detection Backfill scheduler",1==1,"Audit"), runDuration = round(runDuration,2), common_sid = replace(replace(replace(sid,"^detection_backfill_",""),"____.*$$",""),".*_at_(\d+)_.*","\1")
+| eval sid = if($show_sid$==0,"-",sid)
 | table app, label, author, sid, common_sid, type, dispatchState, runDuration, published, updated
 | rename app as "App", author as "Owner", common_sid as "Pivot", sid as "SID", type as "Type", label as "Name", "dispatchState" as "Status", runDuration as "Duration", published as Published, updated as Updated</query>
           <earliest>$time.earliest$</earliest>
@@ -67,10 +74,13 @@
     <panel>
       <title>[Audit logs] Jobs history from the internal logs</title>
       <table>
+        <title>Logs coming from the "scheduler" sourcetype are concerning jobs run as an instance of a scheduled savedsearch (Trigger = True) when logs coming from the "audittrail" sourcetype are concernings all jobs (Trigger = True or False). You might have the same information from different sourcetypes</title>
         <search>
           <query>(index=_internal sourcetype=scheduler 
     [loadjob $sid_schedulers_internal$ | table sid]) OR (index=_audit action=search user!=splunk-system-user provenance=rest event_count!="" [loadjob $sid_schedulers_internal$ | table search_id])
 | eval sid = coalesce(sid,replace(search_id,"'","")), common_sid = replace(replace(replace(sid,"^detection_backfill_",""),"____.*$$",""),".*_at_(\d+)_.*","\1"), dispatch_time = coalesce(dispatch_time, exec_time), run_time = coalesce(run_time, total_run_time), dispatch_time = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z"), scheduled_time = strftime(scheduled_time,"%Y-%m-%d %H:%M:%S %z"), status=coalesce(status,info)
+| fillnull value="-" scheduled_time
+| eval sid = if($show_sid$==0,"-",sid)
 | table _time, sourcetype, app, savedsearch_name, user, sid, common_sid, scheduled_time, dispatch_time, run_time, status, result_count
 | sort 0 -_time
 | rename app as "App", sourcetype, as "Sourcetype", savedsearch_name as "Savedsearch", user as "User", sid as "SID", common_sid as "Pivot", scheduled_time as "Scheduled time", dispatch_time as "Dispatch time", run_time as "Duration", status as "Status", result_count as "Result count"</query>
@@ -116,6 +126,7 @@
     [loadjob $sid_schedulers_internal$ | table sid]
 | rex field=_raw " (?&lt;type&gt;\w+) pid\=.*\| (?&lt;signature2&gt;.*)"
 | eval common_sid = replace(replace(replace(sid,"^detection_backfill_",""),"____.*$$",""),".*_at_(\d+)_.*","\1"), dispatch_time = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z"), scheduled_time = strftime(scheduled_time,"%Y-%m-%d %H:%M:%S %z"), action = coalesce(action,signature,signature2)
+| eval sid = if($show_sid$==0,"-",sid)
 | table _time, sourcetype, app, sid, common_sid, action
 | sort 0 -_time
 | rename app as "App", sourcetype as "Sourcetype", sid as "SID", common_sid as "Pivot", action as Action</query>
@@ -123,11 +134,10 @@
           <latest>$time.latest$</latest>
           <sampleRatio>1</sampleRatio>
         </search>
-        <option name="count">100</option>
+        <option name="count">25</option>
         <option name="dataOverlayMode">none</option>
         <option name="drilldown">none</option>
         <option name="percentagesRow">false</option>
-        <option name="refresh.display">progressbar</option>
         <option name="rowNumbers">false</option>
         <option name="totalsRow">false</option>
         <option name="wrap">true</option>
@@ -145,12 +155,18 @@
   <row>
     <panel>
       <title>[Audit logs] Custom commands regarding Detection Backfill</title>
+      <input type="text" token="cc_keyword">
+        <label>Keyword</label>
+        <default>.*</default>
+        <initialValue>.*</initialValue>
+      </input>
       <table>
         <search>
           <query>(index=_* OR index=cim_*) source="*command_detection_backfill_*.log"
 | rex field=_raw " (?&lt;type&gt;\w+)\t(?&lt;location&gt;[^\-]+) \- (?&lt;signature&gt;.*(?:\[)(?&lt;order&gt;\d+)(?:\])?.*)?"
 | search type="$log_level$"
 | eval signature = coalesce(signature,_raw), command = case(match(source,"evaluate_savedsearches_to_rerun"),"Evaluate savedsearches to rerun",1==1,"?")
+| where match(signature,"$cc_keyword$")
 | table _time, command, type, signature
 | sort 0 -_time -order
 | rename command as "Command", type as "Type", signature as "Message"</query>
@@ -191,6 +207,7 @@
 | streamstats current=f window=1 last(pid) as prev_pid
 | eval delta_time = if(pid==prev_pid,case(delta_time&lt;=0.002,"|",1==1,delta_time),"- (New PID)")
 | sort 0 -_time -order
+| eval sid = if($show_sid$==0,"-",sid)
 | table _time, delta_time, action_type, pid, sid, type, signature
 | rename delta_time as "ΔTime", action_type as "Action type" pid as PID, sid as SID, type as "Type", signature as "Message"</query>
           <earliest>$time.earliest$</earliest>
