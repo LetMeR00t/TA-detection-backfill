@@ -274,7 +274,7 @@ class Backlog(object):
         tasks_todo = []
         tasks = self.get()
         original_tasks_count = len(tasks)
-        if len(tasks) > count:
+        if len(tasks) >= count:
             for i in range(0,count):
                 task = tasks.pop(0)
                 tasks_todo.append(task)
