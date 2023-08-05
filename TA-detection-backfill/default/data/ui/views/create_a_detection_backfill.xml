@@ -1,5 +1,6 @@
 <form version="1.1">
   <label>➕Create a detection backfill</label>
+  <description>⚠️ Disabled or not scheduled searches aren't considered during the evaluation🛑 In case of error, please check the issue on the "Audit logs" dashboard</description>
   <init>
     <unset token="execute_yes"></unset>
   </init>
@@ -18,7 +19,7 @@
         <label>Savedsearches regex pattern</label>
       </input>
       <table>
-        <title>Select your outage period (the period during which the detections did not work) and identify the pattern of saved searches you wish to perform during this break period. This panel will generate all the periods on which the savedsearches need to be run indicated with the "Dispatch Time" field and a "Comment" about its value. 🛑 In case of error, please check the issue on the "Audit logs" dashboard</title>
+        <title>Select your outage period (the period during which the detections did not work) and identify the pattern of saved searches you wish to perform during this break period. This panel will generate all the periods on which the savedsearches need to be run indicated with the "Dispatch Time" field and a "Comment" about its value.</title>
         <search>
           <done>
             <set token="job_1">$job.sid$</set>
@@ -36,7 +37,6 @@
         <option name="dataOverlayMode">none</option>
         <option name="drilldown">none</option>
         <option name="percentagesRow">false</option>
-        <option name="refresh.display">progressbar</option>
         <option name="rowNumbers">false</option>
         <option name="totalsRow">false</option>
         <option name="wrap">true</option>
