@@ -60,12 +60,22 @@ class Pattern(object):
         self.original_pattern = original_pattern
         self.logger = logger
         self.logger_file = LoggerFile(logger, "P")
+        # Initialize values to None
+        self.snap = None
+        self.snapOff = None
+        self.snapUnit = None
+        self.offset1 = None
+        self.unit1 = None
+        self.offset2 = None
+        self.unit2 = None
         self._process_pattern()
         
     def _process_pattern(self):
         """This is used to process a given pattern
         """
         m = re.match("((?P<offset1>[+-]?\d+)(?P<unit1>[a-zA-Z]+)(?:(?P<offset2>[+-]\d+)(?P<unit2>[a-zA-Z]+))?)?(?:@(?P<snap>[a-zA-Z]+)(?:(?P<snapOff>[+-]\d+)(?P<snapUnit>[a-zA-Z]+))?)?",self.original_pattern)
+
+        self.logger_file.debug("004","Relative time - Processing pattern '{0}'...".format(self.original_pattern))
 
         if m and self.original_pattern != "now":
 
@@ -78,7 +88,11 @@ class Pattern(object):
             self.offset2 = m.group('offset2')
             self.unit2 = m.group('unit2')
         
-        self.logger_file.debug("005","Relative time - Pattern extracted: snap='{0}', snapOff='{1}', snapUnit='{2}', offset1='{3}', unit1='{4}', offset2='{5}', unit1='{6}'".format(self.snap,self.snapOff,self.snapUnit,self.offset1,self.unit1,self.offset2,self.unit2))
+            self.logger_file.debug("005","Relative time - Pattern extracted: snap='{0}', snapOff='{1}', snapUnit='{2}', offset1='{3}', unit1='{4}', offset2='{5}', unit1='{6}'".format(self.snap,self.snapOff,self.snapUnit,self.offset1,self.unit1,self.offset2,self.unit2))
+
+        else:
+            self.logger_file.debug("006","Relative time - None pattern extracted, either wrong pattern format or value set to 'now'")
+
 
 class RelativeTime(object):
 
@@ -180,17 +194,18 @@ class RelativeTime(object):
         """This function will get earliest or latest based on the scheduled run time. This could be as simple as -15m or @d or be complex as -1mon@y+12d
         Inherited and refactored from the Splunk Rerun app
         """
-        
+        self.logger_file.debug("030","Relative time - Original time: {0} ({1}) will be processed with the given pattern: {2}".format(self.time_original,datetime.datetime.fromtimestamp(self.time_original,tz=self.tz).strftime("%c %z"),self.pattern.original_pattern))
+
+
         if self.pattern.original_pattern.isdigit():
             #If it is static time
             self.time_calculated = self.pattern.original_pattern
+            self.logger_file.debug("034","Relative time - Result: {0} ({1})".format(self.time_calculated,datetime.datetime.fromtimestamp(self.time_calculated,tz=self.tz).strftime("%c %z")))
         
         elif self.pattern.original_pattern != "now":
 
             #Apply snap then offsets in the following order: snap offset, first offset, second offset
             #The only time I think the order of offset would matter is when "mon" is used.
-
-            self.logger_file.debug("030","Relative time - Original time: {0} ({1}) will be processed with the given pattern: {2}".format(self.time_original,datetime.datetime.fromtimestamp(self.time_original,tz=self.tz).strftime("%c %z"),self.pattern.original_pattern))
 
             self._apply_snap(self.pattern.snap)
             self._apply_offset(self.pattern.snapOff, self.pattern.snapUnit)
@@ -200,6 +215,11 @@ class RelativeTime(object):
             self.datetime_calculated = datetime.datetime.fromtimestamp(self.time_calculated)
             
             self.logger_file.debug("035","Relative time - Result: {0} ({1})".format(self.time_calculated,datetime.datetime.fromtimestamp(self.time_calculated,tz=self.tz).strftime("%c %z")))
+
+        else:
+            # We have a "now" timestamp. As value is already initialized with original time, return the original time
+            self.datetime_calculated = datetime.datetime.fromtimestamp(self.time_calculated)
+            self.logger_file.debug("036","Relative time - Result: {0} ({1})".format(self.time_original,self.datetime_calculated.strftime("%c %z")))
 
 class Backlog(object):
     def __init__(self, logger=None):
@@ -211,8 +231,8 @@ class Backlog(object):
         self.backlog_file = os.path.join(self.directory, 'detection_backfill_backlog.csv')
         self.headers = sorted(["bf_uid","bf_created_time","bf_created_author","bf_batch_name","bf_priority","bf_batch_id","app","savedsearch","dispatch_time"])
 
-        # Create the file if it's not existing
-        if not os.path.exists(self.backlog_file):
+        # Create the file if it's not existing or empty (issue with headers not existing)
+        if not os.path.exists(self.backlog_file) or os.path.getsize(self.backlog_file) == 0:
             self.create_lookup_backlog()
 
     def create_lookup_backlog(self):
@@ -221,16 +241,15 @@ class Backlog(object):
         # if it does not exist, create detection_backfill_backlog.csv
         self.logger_file.info("005","Initialize backlog file: " + str(self.backlog_file))
 
-        if not os.path.exists(self.backlog_file):
-            # file backlog_file.csv doesn't exist. Create the file
-            try:
-                if not os.path.exists(self.directory):
-                    os.makedirs(self.directory)
-                with open(self.backlog_file, 'w') as file_object:
-                    writer = csv.DictWriter(file_object, fieldnames=self.headers)
-                    writer.writeheader()
-            except IOError:
-                self.logger_file.error("010","FATAL {} could not be opened in write mode".format(self.headers))
+        # file backlog_file.csv doesn't exist or misconfigured. Create the file
+        try:
+            if not os.path.exists(self.directory):
+                os.makedirs(self.directory)
+            with open(self.backlog_file, 'w') as file_object:
+                writer = csv.DictWriter(file_object, fieldnames=self.headers)
+                writer.writeheader()
+        except IOError:
+            self.logger_file.error("010","FATAL {} could not be opened in write mode".format(self.headers))
 
     def add(self, tasks = []) -> bool:
         """ This function is used to add a list of tasks to the backlog. Returns a boolean to know if tasks were added or not """
