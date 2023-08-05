@@ -71,6 +71,9 @@ if __name__ == '__main__':
                 else:
                     apps[search.access["app"]] = 1
                 savedsearches.append(search)
+            elif filter_savedsearches_regex.search(search.name):
+                # Match but ignored as not scheduled or disabled
+                logger_file.info("016","Regexp '{0}' is matching '{1}/{2}' BUT this was ignored as it's either not scheduled or disabled.".format(savedsearches_regex, search.access["app"], search.name))
         logger_file.info("019","End of all savedsearches analysis, results found ("+str(len(savedsearches))+") by app: "+str(apps))
 
         # Process each savedsearch identified on the outage period
