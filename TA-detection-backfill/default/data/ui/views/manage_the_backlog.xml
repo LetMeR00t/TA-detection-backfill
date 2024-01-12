@@ -1,5 +1,5 @@
 <form version="1.1">
-  <label>🔧 Manage the backlog</label>
+  <label>2.🔧 Manage the backlog</label>
   <description>This dashboard is used to manage the current detection backfill dashboard</description>
   <init>
     <eval token="last_refresh">now()</eval>
@@ -46,7 +46,7 @@
       <table>
         <title>This is the current list of detection backfill already setup within the backlog to be processed</title>
         <search>
-          <query>| inputlookup detection_backfill_backlog.csv
+          <query>| inputlookup detection_backfill_backlog
 | eval dispatch_time = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z"), bf_created_time = strftime(bf_created_time,"%Y-%m-%d %H:%M:%S %z"), last_refresh = "$last_refresh$", action=case("$global_action$"=="remove","$action_remove_instance$",1==1,"-")
 | where match(app,"$filter_app$") AND match(savedsearch,"$filter_savedsearch$")
 | table bf_batch_name, bf_batch_id, bf_uid, bf_priority, app, savedsearch, dispatch_time, bf_created_time, bf_created_author, action
@@ -91,9 +91,9 @@
             <eval token="last_refresh">now()</eval>
             <unset token="remove_id"></unset>
           </done>
-          <query>| inputlookup detection_backfill_backlog.csv
+          <query>| inputlookup detection_backfill_backlog
 | where bf_uid!="$remove_id$"
-| outputlookup detection_backfill_backlog.csv</query>
+| outputlookup detection_backfill_backlog</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
           <sampleRatio>1</sampleRatio>

@@ -1,5 +1,5 @@
 <form version="1.1">
-  <label>➕Create a detection backfill</label>
+  <label>1.➕Create a detection backfill</label>
   <description>⚠️ Disabled or not scheduled searches aren't considered during the evaluation🛑 In case of error, please check the issue on the "Audit logs" dashboard</description>
   <init>
     <unset token="execute_yes"></unset>
