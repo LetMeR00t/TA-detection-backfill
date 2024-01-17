@@ -9,6 +9,8 @@ from dateutil.relativedelta import relativedelta
 import tzlocal
 import splunklib.client as client
 import logging
+import json
+import random
 
 # Author: Alexandre Demeyer <letmer00t@gmail.com>
 # Inspired by: Donald Murchison
@@ -222,18 +224,25 @@ class RelativeTime(object):
             self.logger_file.debug("036","Relative time - Result: {0} ({1})".format(self.time_original,self.datetime_calculated.strftime("%c %z")))
 
 class Backlog(object):
-    def __init__(self, logger=None):
+    def __init__(self, spl_token=None, logger=None):
         # Initialize all settings to None
         self.logger = logger
         self.logger_file = LoggerFile(logger, "B")
         self.namespace = "TA-detection-backfill"
         self.directory = os.path.join(os.environ['SPLUNK_HOME'], 'etc', 'apps', self.namespace, 'lookups')
-        self.backlog_file = os.path.join(self.directory, 'detection_backfill_backlog.csv')
+        self.backlog_file_name = "detection_backfill_backlog.csv"
+        self.backlog_file = os.path.join(self.directory, self.backlog_file_name)
+        self.backlog_file_tmp = os.path.join(os.environ['SPLUNK_HOME'], 'var', 'run', 'splunk', 'lookup_tmp', "tmp_{0}_".format(random.randint(1,10000))+"_"+self.backlog_file_name)
         self.headers = sorted(["bf_uid","bf_created_time","bf_created_author","bf_batch_name","bf_priority","bf_batch_id","app","savedsearch","dispatch_time"])
+        self.spl_service = client.Service(token=spl_token)
 
         # Create the file if it's not existing or empty (issue with headers not existing)
         if not os.path.exists(self.backlog_file) or os.path.getsize(self.backlog_file) == 0:
             self.create_lookup_backlog()
+
+    def spl_post(self, uri=None, **query):
+        r = json.loads(self.spl_service.post(uri, owner="nobody", app=self.namespace,**query).body.read())["entry"][0]["content"]
+        return r
 
     def create_lookup_backlog(self):
         """ This function is used to create a backlog lookup if it doesn't exist """
@@ -313,7 +322,7 @@ class Backlog(object):
         backlog_sorted = sorted(tasks, key=lambda d: (int(d['bf_priority']),d['bf_batch_name'])) 
         # Write the results if checks are successful
         try:
-            with open(self.backlog_file, 'w', newline='') as file_object:
+            with open(self.backlog_file_tmp, 'w', newline='') as file_object:
                 writer = csv.DictWriter(file_object, fieldnames=self.headers)
                 writer.writeheader()
                 for task in backlog_sorted:
@@ -321,6 +330,10 @@ class Backlog(object):
         except IOError:
             self.logger_file.error("040","FATAL {} could not be opened in write mode".format(self.headers))
         
+        # Store results in the CSV file through the Splunk API for lookup replication
+        query = {"eai:data": self.backlog_file_tmp, "output_mode": "json"}
+        self.spl_post(uri="data/lookup-table-files/{0}".format(self.backlog_file_name),**query)
+
         self.logger_file.info("041","Backlog updated: {0} tasks written".format(len(backlog_sorted)))
         return check
 

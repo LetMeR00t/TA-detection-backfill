@@ -69,7 +69,8 @@ def process_event(helper, *args, **kwargs):
     trigger = helper.get_param("trigger")
 
     # Get backlog
-    backlog = Backlog(logger=logger)
+    spl_token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]
+    backlog = Backlog(spl_token=spl_token,logger=logger)
 
     # Get the information from the events and process them
     events = helper.get_events()
