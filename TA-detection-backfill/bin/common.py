@@ -202,7 +202,8 @@ class RelativeTime(object):
         if self.pattern.original_pattern.isdigit():
             #If it is static time
             self.time_calculated = self.pattern.original_pattern
-            self.logger_file.debug("034","Relative time - Result: {0} ({1})".format(self.time_calculated,datetime.datetime.fromtimestamp(self.time_calculated,tz=self.tz).strftime("%c %z")))
+            self.datetime_calculated = datetime.datetime.fromtimestamp(float(self.pattern.original_pattern))
+            self.logger_file.debug("034","Relative time - Result: {0} ({1})".format(self.time_calculated,datetime.datetime.fromtimestamp(float(self.time_calculated),tz=self.tz).strftime("%c %z")))
         
         elif self.pattern.original_pattern != "now":
 
