@@ -105,6 +105,7 @@ def process_event(helper, *args, **kwargs):
         app = task["app"]
         savedsearch_name = task["savedsearch"]
         spl_code_injection_id = task["bf_spl_code_injection_id"]
+        trigger = True if "trigger" in task and task["trigger"] == "1" else False 
 
         # Try to connect to the Splunk API
         logger_file.debug("005","Connecting to Splunk API...")
@@ -206,14 +207,8 @@ def process_event(helper, *args, **kwargs):
         # Get latest dispatch time
         latest_time = RelativeTime(savedsearch['content']['dispatch.latest_time'],dispatch_time,logger=logger).datetime_calculated.timestamp()
 
-        # Prepare parameters
-        dispatch_kwargs = {"dispatch.earliest_time": str(earliest_time), "dispatch.latest_time": str(latest_time), "force_dispatch": True}
-
-        # Check if triggers need to be activated
-        if trigger == "1":
-            dispatch_kwargs["trigger_actions"] = True
-        else:
-            dispatch_kwargs["trigger_actions"] = False
+        # Prepare parameters, including the trigger
+        dispatch_kwargs = {"dispatch.ttl": configuration.additional_parameters["dispatch_ttl"], "dispatch.earliest_time": str(earliest_time), "dispatch.latest_time": str(latest_time), "force_dispatch": True, "trigger_actions": trigger}
 
         logger_file.debug("030","Savedsearch dispatch parameters: "+str(dispatch_kwargs))
 

@@ -80,6 +80,7 @@ def process_event(helper, *args, **kwargs):
     savedsearch_field_name = helper.get_param("savedsearch_field_name")
     dispatch_time_field_name = helper.get_param("dispatch_time_field_name")
     spl_code_injection_id = helper.get_param("spl_code_injection")
+    trigger = helper.get_param("trigger")
 
     # Get backlog
     spl_token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]

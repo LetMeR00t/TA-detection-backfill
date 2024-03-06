@@ -77,6 +77,10 @@
           <colorPalette type="sharedList"></colorPalette>
           <scale type="sharedCategory"></scale>
         </format>
+        <format type="color" field="Trigger actions">
+          <colorPalette type="map">{"Yes":#118832,"No":#D41F1F}</colorPalette>
+        </format>
+        <fields>["Batch name","Batch ID","Priority","App","Savedsearch","Will be rerun on (dispatch time)","SPL Injection code","Trigger actions","Batch created on","Batch created by","Action"]</fields>
         <drilldown>
           <condition match="$click.value2$ == $action_remove_instance$">
             <eval token="remove_id">$row.bf_uid$</eval>
