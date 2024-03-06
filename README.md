@@ -33,7 +33,7 @@ Several scenarios can be overseen:
 
 ![Context - Log collection disruption](./images/context_outage_period.png)
 
-- **Scenario 2**: Log collection is delayed due to an issue between a datasource and Splunk. Data are collected but with a significant difference between the **time the event (time or the field "_time" in Splunk)** occurred (and a log was created on the data source) and the **time the log is indexed ("index time or the field "_index_time" in Splunk)** in Splunk.
+- **Scenario 2**: Log collection is delayed due to an issue between a datasource and Splunk. Data are collected but with a significant difference between the **time the event (called "time" in the diagrams or the field "_time" in Splunk)** occurred (and a log was created on the data source) and the **time the log is indexed ("called "index time" in the diagrams or the field "_index_time" in Splunk)** in Splunk.
 
 ![Context - Log collection delay](./images/context_log_collection_delay.png)
 
