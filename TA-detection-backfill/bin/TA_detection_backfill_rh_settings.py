@@ -24,11 +24,25 @@ fields_logging = [
 ]
 model_logging = RestModel(fields_logging, name='logging')
 
+fields_additional_parameters = [
+    field.RestField(
+        'dispatch_ttl',
+        required=True,
+        encrypted=False,
+        default='86400',
+        validator=validator.Number(
+            min_val=60, 
+            max_val=31536000, 
+        )
+    )
+]
+model_additional_parameters = RestModel(fields_additional_parameters, name='additional_parameters')
 
 endpoint = MultipleModel(
     'ta_detection_backfill_settings',
     models=[
-        model_logging
+        model_logging,
+        model_additional_parameters
     ],
 )
 

@@ -403,17 +403,31 @@ class Settings(object):
         self.backlog = []
         self.client = client
         self.namespace = "TA-detection-backfill"
-        
+
+        self._logging_settings = None
+        self._additional_parameters = None
+
         # Prepare the query
         self.query = {"output_mode": "json"}
-
-        # Get instances
-        if settings is not None and "namespace" in settings:
+        if settings is not None:
+            conf = self.read_default_local_configuration("ta_detection_backfill_settings.conf")
             # Get logging
-            logging_settings = self.read_default_local_configuration("ta_detection_backfill_settings.conf")["logging"]
-            logger.setLevel(logging_settings["loglevel"])
-            self.logger_file.debug("002","Logging mode set to " + str(logging_settings["loglevel"]))
+            self._logging_settings = conf["logging"]
+            # Set logging level
+            logger.setLevel(self._logging_settings["loglevel"])
+            self.logger_file.debug("002","Logging mode set to " + str(self.logging_settings["loglevel"]))
+            # Get additional parameters
+            self._additional_parameters = conf["additional_parameters"]
+            self.logger_file.debug("003","Additional parameters recovered: " + str(self._additional_parameters))
      
+    @property
+    def logging_settings(self):
+        return self._logging_settings
+    
+    @property
+    def additional_parameters(self):
+        return self._additional_parameters
+
     def read_conf_file(self, folder, filename):
         """ This function is used to retrieve information from a .conf file stored in a specified folder in this application """
         conf = {}
