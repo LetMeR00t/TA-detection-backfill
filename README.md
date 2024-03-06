@@ -22,7 +22,18 @@
 
 # Introduction
 
-This TA can be used to **fill in detection gaps following a period of data collection interruption**. Once data are recovered in Splunk, this application can be used to restart scheduled searches during this outage.
+This TA can be used to **fill in detection gaps following a period of data collection interruption/disruption**.
+Several scenarios can be overseen:
+
+- **Scenario 1**: Log collection was stopped due to an issue between a datasource and Splunk. An outage period means that we didn't got the data in Splunk resulting in a loss of logs.
+
+![Context - Log collection disruption](./images/context_outage_period.png)
+
+- **Scenario 2**: Log collection is delayed due to an issue between a datasource and Splunk. Data are collected but with a significant difference between the time the event occurred (and a log was created on the data source) and the time the log is indexed in Splunk.
+
+![Context - Log collection delay](./images/context_log_collection_delay.png)
+
+Once data are recovered in Splunk, this application can be used to restart scheduled searches during this outage.
 
 Detection backfill naming is a reference to the data backfilling process which aims to recover old data to fill gaps. As we are focusing on re-running savedsearches or correlation searches, we are talking about detection backfilling.
 
