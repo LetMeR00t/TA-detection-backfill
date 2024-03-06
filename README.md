@@ -6,6 +6,9 @@
 
 - [Table of content](#table-of-content)
 - [Introduction](#introduction)
+  - [Problem to solve](#problem-to-solve)
+  - [Consequences](#consequences)
+  - [Solution](#solution)
 - [Use Cases](#use-cases)
 - [Functionalities](#functionalities)
 - [Installation](#installation)
@@ -22,6 +25,7 @@
 
 # Introduction
 
+## Problem to solve
 This TA can be used to **fill in detection gaps following a period of data collection interruption/disruption**.
 Several scenarios can be overseen:
 
@@ -29,9 +33,21 @@ Several scenarios can be overseen:
 
 ![Context - Log collection disruption](./images/context_outage_period.png)
 
-- **Scenario 2**: Log collection is delayed due to an issue between a datasource and Splunk. Data are collected but with a significant difference between the time the event occurred (and a log was created on the data source) and the time the log is indexed in Splunk.
+- **Scenario 2**: Log collection is delayed due to an issue between a datasource and Splunk. Data are collected but with a significant difference between the **time the event (time or the field "_time" in Splunk)** occurred (and a log was created on the data source) and the **time the log is indexed ("index time or the field "_index_time" in Splunk)** in Splunk.
 
 ![Context - Log collection delay](./images/context_log_collection_delay.png)
+
+## Consequences
+
+As a result of the previous scenarios, detections might not be working properly as the data weren't available at the time of the search.
+
+For the scenario 1, it results as:
+![Context - Savedsearches not running properly for scenario 1](./images/context_savedsearch_not_running_properly_scenario1.png)
+
+For the scenario 2, it results as:
+![Context - Savedsearches not running properly for scenario 2](./images/context_savedsearch_not_running_properly_scenario2.png)
+
+## Solution
 
 Once data are recovered in Splunk, this application can be used to restart scheduled searches during this outage.
 
