@@ -62,6 +62,26 @@
         <choice value="3">Low (3)</choice>
         <choice value="4">Lowest (4)</choice>
       </input>
+      <input type="dropdown" token="spl_code_injection">
+        <label>SPL code injection</label>
+        <fieldForLabel>name</fieldForLabel>
+        <fieldForValue>id</fieldForValue>
+        <search>
+          <query>| inputlookup detection_backfill_spl_code_injections
+| eval name = "("+id+") "+name
+| table id, name</query>
+          <earliest>@d</earliest>
+          <latest>now</latest>
+        </search>
+        <choice value="0">Aucune</choice>
+        <default>0</default>
+      </input>
+      <input type="dropdown" token="trigger">
+        <label>Trigger (execute alert actions)</label>
+        <choice value="0">No</choice>
+        <choice value="1">Yes</choice>
+        <default>0</default>
+      </input>
       <input type="radio" token="execute">
         <label>Execute (add to the backlog)</label>
         <choice value="0">No</choice>
@@ -82,7 +102,7 @@
           <query>| loadjob $job_1$
 | eval execute = "$execute_yes$"
 | table app, savedsearch, dispatch_time
-| sendalert detection_backfill_add_a_backfill_to_the_backlog param.batch_name="$batch_name$" param.batch_priority="$batch_priority$"
+| sendalert detection_backfill_add_a_backfill_to_the_backlog param.batch_name="$batch_name$" param.batch_priority="$batch_priority$" param.spl_code_injection="$spl_code_injection$" param.trigger="$trigger$"
 | rename app as "App", savedsearch as "Savedsearch", dispatch_time as "Dispatch time"</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>

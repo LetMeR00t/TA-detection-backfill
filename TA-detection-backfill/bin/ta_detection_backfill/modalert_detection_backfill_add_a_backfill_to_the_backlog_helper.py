@@ -79,6 +79,7 @@ def process_event(helper, *args, **kwargs):
     app_field_name = helper.get_param("app_field_name")
     savedsearch_field_name = helper.get_param("savedsearch_field_name")
     dispatch_time_field_name = helper.get_param("dispatch_time_field_name")
+    spl_code_injection_id = helper.get_param("spl_code_injection")
 
     # Get backlog
     spl_token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]
@@ -104,7 +105,7 @@ def process_event(helper, *args, **kwargs):
         bf_uid = hashlib.sha256((bf_batch_id+str(now)+str(random.randrange(0,1000000000))).encode('utf-8')).hexdigest()[:16]
 
         # Initialize task
-        task = {"bf_uid": bf_uid, "bf_batch_name": bf_batch_name, "bf_priority": bf_priority, "bf_batch_id": bf_batch_id, "bf_created_time": now, "bf_created_author": helper.settings["owner"]}
+        task = {"bf_uid": bf_uid, "bf_batch_name": bf_batch_name, "bf_priority": bf_priority, "bf_batch_id": bf_batch_id, "bf_spl_code_injection_id": spl_code_injection_id, "bf_trigger": trigger, "bf_created_time": now, "bf_created_author": helper.settings["owner"]}
 
         # Enrich task with the event values
         if app_field_name in event:

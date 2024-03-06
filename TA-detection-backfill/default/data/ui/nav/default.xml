@@ -4,7 +4,10 @@
   <view name="manage_the_backlog" />
   <view name="executions" />
   <view name="audit_logs"/>
-  <view name="configuration"/>
+  <collection label="Settings">
+  	<view name="configuration"/>
+    <view name="spl_code_injection_settings"/>
+  </collection>
   <collection label="Splunk App">
     <view name="search"/>
     <view name="alerts"/>

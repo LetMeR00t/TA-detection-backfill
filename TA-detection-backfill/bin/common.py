@@ -234,7 +234,7 @@ class Backlog(object):
         self.backlog_file_name = "detection_backfill_backlog.csv"
         self.backlog_file = os.path.join(self.directory, self.backlog_file_name)
         self.backlog_file_tmp = os.path.join(os.environ['SPLUNK_HOME'], 'var', 'run', 'splunk', 'lookup_tmp', "tmp_{0}_".format(random.randint(1,10000))+"_"+self.backlog_file_name)
-        self.headers = sorted(["bf_uid","bf_created_time","bf_created_author","bf_batch_name","bf_priority","bf_batch_id","app","savedsearch","dispatch_time"])
+        self.headers = sorted(["bf_uid","bf_created_time","bf_created_author","bf_batch_name","bf_priority","bf_batch_id","bf_spl_code_injection_id","bf_trigger","app","savedsearch","dispatch_time"])
         self.spl_service = client.Service(token=spl_token)
 
         # Create the file if it's not existing or empty (issue with headers not existing)
@@ -337,6 +337,62 @@ class Backlog(object):
 
         self.logger_file.info("041","Backlog updated: {0} tasks written".format(len(backlog_sorted)))
         return check
+
+class SPLCodeInjection(object):
+    def __init__(self, spl_token=None, logger=None):
+        # Initialize all settings to None
+        self.logger = logger
+        self.logger_file = LoggerFile(logger, "SPLCI")
+        self.namespace = "TA-detection-backfill"
+        self.directory = os.path.join(os.environ['SPLUNK_HOME'], 'etc', 'apps', self.namespace, 'lookups')
+        self.spl_code_injection_file_name = "detection_backfill_spl_code_injections.csv"
+        self.spl_code_injection_file = os.path.join(self.directory, self.spl_code_injection_file_name)
+        self.headers = sorted(["id", "macro", "name", "position"])
+        self.spl_service = client.Service(token=spl_token)
+
+        # Create the file if it's not existing or empty (issue with headers not existing)
+        if not os.path.exists(self.spl_code_injection_file) or os.path.getsize(self.spl_code_injection_file) == 0:
+            self.create_lookup_spl_code_injection()
+
+    def spl_post(self, uri=None, **query):
+        r = json.loads(self.spl_service.post(uri, owner="nobody", app=self.namespace,**query).body.read())["entry"][0]["content"]
+        return r
+
+    def create_lookup_spl_code_injection(self):
+        """ This function is used to create a SPL code injection lookup if it doesn't exist """
+
+        # if it does not exist, create detection_backfill_spl_code_injections.csv
+        self.logger_file.info("005","Initialize SPL code injection file: " + str(self.spl_code_injection_file))
+
+        # file doesn't exist or misconfigured. Create the file
+        try:
+            if not os.path.exists(self.directory):
+                os.makedirs(self.directory)
+            with open(self.spl_code_injection_file, 'w') as file_object:
+                writer = csv.DictWriter(file_object, fieldnames=self.headers)
+                writer.writeheader()
+                writer.writerow({"id": "0c6d1d97", "macro": "default_code_injection", "name": "Default code injection adding a new field 'backfill' set to 1 at the end of the search", "position": "-1"})
+        except IOError:
+            self.logger_file.error("010","FATAL {} could not be opened in write mode".format(self.headers))
+
+    def get(self) -> dict:
+        """" This function is used to get all SPL code injection settings from the corresponding CSV file as a dictionnary by id """
+        outputs = {}
+        if os.path.exists(self.spl_code_injection_file):
+            with open(self.spl_code_injection_file, 'r') as file:
+                content = csv.reader(file)
+                header = next(content)
+                for line in content:
+                    if line != []:
+                        # Build the row as a dict
+                        row = {}
+                        for i in range(0,len(line)):
+                            row[header[i]] = line[i]
+                        id = row["id"]
+                        outputs[id] = row
+        self.logger_file.debug("030","SPL code injections list recovered: {0} possibilities found".format(len(outputs)))
+        return outputs
+
 
 class Settings(object):
 

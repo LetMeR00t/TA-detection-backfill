@@ -35,6 +35,11 @@ class AlertActionWorkerdetection_backfill_add_a_backfill_to_the_backlog(ModularA
         if not self.get_param("dispatch_time_field_name"):
             self.log_error('dispatch_time_field_name is a mandatory parameter, but its value is None.')
             return False
+        
+        if not self.get_param("spl_code_injection"):
+            self.log_error('spl_code_injection is a mandatory parameter, but its value is None.')
+            return False
+        
         return True
 
     def process_event(self, *args, **kwargs):

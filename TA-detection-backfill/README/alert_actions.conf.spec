@@ -11,4 +11,5 @@ param.batch_priority = <string> Batch priority. It's a required parameter. It's 
 param.savedsearch_field_name = <string> Savedsearch field name. It's a required parameter. It's default value is savedsearch.
 param.app_field_name = <string> App field name. It's a required parameter. It's default value is app.
 param.dispatch_time_field_name = <string> Dispatch time field name. It's a required parameter. It's default value is dispatch_time.
+param.spl_code_injection = <string> ID of a SPL code injection to execute for the given backfill. It's default value is 0 (meaning none)
 
