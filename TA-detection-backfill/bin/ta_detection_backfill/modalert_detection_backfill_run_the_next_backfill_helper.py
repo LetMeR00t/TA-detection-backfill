@@ -8,8 +8,9 @@ import globals
 import sys
 import datetime
 import tzlocal
+import hashlib
 import splunklib.client as client
-from common import LoggerFile, Backlog, RelativeTime
+from common import Settings, LoggerFile, Backlog, RelativeTime, SPLCodeInjection
 
 def process_event(helper, *args, **kwargs):
     """
@@ -26,11 +27,6 @@ def process_event(helper, *args, **kwargs):
 
     # The following example gets account information
     user_account = helper.get_user_credential("<account_name>")
-
-    # The following example gets the alert action parameters and prints them to the log
-    trigger = helper.get_param("trigger")
-    helper.log_info("trigger={}".format(trigger))
-
 
     # The following example adds two sample events ("hello", "world")
     # and writes them to Splunk
@@ -56,7 +52,7 @@ def process_event(helper, *args, **kwargs):
     # Set the current LOG level
     logger = helper._logger
     logger_file = LoggerFile(logger, "CAA-RTNB")
-    helper.log_info("[CAA-RTNB-001] LOG level to: " + helper.log_level)
+    helper.log_info("[CAA-RTNB-000] LOG level to: " + helper.log_level)
     helper.set_log_level(helper.log_level)
 
     # Build the context around the Splunk instance
@@ -89,17 +85,15 @@ def process_event(helper, *args, **kwargs):
     for event in events:
         counter += 1
 
-    logger_file.info("002","Counter set to {0}. Will process the first {0} elements of the backlog...".format(str(counter)))
+    logger_file.info("004","Counter set to {0}. Will process the first {0} elements of the backlog...".format(str(counter)))
 
     # Get next task
     tasks = backlog.next_tasks(counter)
 
     if tasks == []:
-        logger_file.info("003","Backlog is empty, nothing to rerun.")
+        logger_file.info("005","Backlog is empty, nothing to rerun.")
 
     for task in tasks:
-        
-        logger_file.info("004","Process this task: {0}, with trigger set to: {1}".format(str(task),trigger))
 
         dispatch_time = float(task["dispatch_time"])
         app = task["app"]
@@ -107,15 +101,17 @@ def process_event(helper, *args, **kwargs):
         spl_code_injection_id = task["bf_spl_code_injection_id"]
         trigger = True if "trigger" in task and task["trigger"] == "1" else False 
 
+        logger_file.info("006","Process this task: {0}, with trigger set to: {1}".format(str(task),trigger))
+
         # Try to connect to the Splunk API
-        logger_file.debug("005","Connecting to Splunk API...")
+        logger_file.debug("007","Connecting to Splunk API with the app context set to {app}...".format(app=app))
         try:
             spl = client.connect(app=app, owner=owner, token=token)
-            logger_file.debug("006","Connected to Splunk API successfully")
+            logger_file.debug("008","Connected to Splunk API successfully")
         except Exception as e:
-            logger_file.error("007","{}".format(e.msg))
+            logger_file.error("009","{}".format(e.msg))
 
-        # Get the context of the savedsearch
+        # Get the context of the savedsearch            
         try:
             savedsearch = spl.saved_searches[savedsearch_name]
             logger_file.debug("010","Savedsearch '"+app+"/"+savedsearch_name+"' successfully recovered")
@@ -199,7 +195,7 @@ def process_event(helper, *args, **kwargs):
 
         dispatch_time_readable = datetime.datetime.fromtimestamp(dispatch_time,tz=tzlocal.get_localzone()).strftime("%c %z")
 
-        logger_file.info("020","Job for the savedsearch '"+app+"/"+savedsearch_name+"' will be dispatched with a reference time set to "+dispatch_time_readable+" ("+str(dispatch_time)+")...")
+        logger_file.info("025","Job for the savedsearch '"+app+"/"+savedsearch["name"]+"' will be dispatched with a reference time set to "+dispatch_time_readable+" ("+str(dispatch_time)+")...")
 
         # Get earliest dispatch time
         earliest_time = RelativeTime(savedsearch['content']['dispatch.earliest_time'],dispatch_time,logger=logger).datetime_calculated.timestamp()
@@ -221,9 +217,10 @@ def process_event(helper, *args, **kwargs):
         try:
             job = savedsearch.dispatch(**dispatch_kwargs)
         except Exception as e:
-            logger_file.error("040","The savedsearch '"+app+"/"+savedsearch_name+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information")
+            logger_file.error("040","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information")
             sys.exit(40)
 
+        logger_file.info("050","Job for the savedsearch '"+app+"/"+savedsearch["name"]+"' dispatched was created as if the current time was "+dispatch_time_readable+" ("+str(dispatch_time)+"). Job SID '"+job.sid+"' dispatched from backfill uid '"+task["bf_uid"]+"', batch '"+task["bf_batch_name"].replace("'","\"")+"' ("+task["bf_batch_id"]+")")
 
         # If we recreated a savedsearch, enable/disable it just for this execution
         if app == "TA-detection-backfill":

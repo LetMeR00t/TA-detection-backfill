@@ -1,6 +1,6 @@
 <form version="1.1">
   <label>2.🔧 Manage the backlog</label>
-  <description>This dashboard is used to manage the current detection backfill dashboard</description>
+  <description>This dashboard is used to manage the current detection backfill backlog</description>
   <init>
     <eval token="last_refresh">now()</eval>
     <set token="action_remove_instance">❌ Remove this instance</set>
