@@ -51,10 +51,13 @@ For the scenario 2, it results as:
 
 Once data are recovered in Splunk, this application can be used to restart scheduled searches during this outage.
 
-Detection backfill naming is a reference to the data backfilling process which aims to recover old data to fill gaps. As we are focusing on re-running savedsearches or correlation searches, we are talking about detection backfilling.
+For the scenario 1, it results as:
+![Context - Savedsearches rerun for scenario 1](./images/context_savedsearch_rerun_scenario1.png)
 
-![Overview](images/overview.png)
-*Example of the overview dashboard*
+For the scenario 2, it results as:
+![Context - Savedsearches rerun for scenario 2](./images/context_savedsearch_rerun_scenario2.png)
+
+Detection backfill naming is a reference to the data backfilling process which aims to recover old data to fill gaps. As we are focusing on re-running savedsearches or correlation searches, we are talking about detection backfilling.
 
 # Use Cases
 
