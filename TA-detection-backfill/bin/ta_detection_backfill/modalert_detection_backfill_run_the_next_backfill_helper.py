@@ -57,7 +57,7 @@ def process_event(helper, *args, **kwargs):
 
     # Build the context around the Splunk instance
     owner = helper.settings["owner"]
-    token = helper.settings["session_key"]
+    token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]
     sid = helper.settings["sid"]
     globals.log_context = "[sid={0}]".format(sid)
 
@@ -76,8 +76,7 @@ def process_event(helper, *args, **kwargs):
     configuration = Settings(spl_detection_backfill, helper.settings, logger)
 
     # Get backlog
-    spl_token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]
-    backlog = Backlog(spl_token=spl_token,logger=logger)
+    backlog = Backlog(spl_token=token,logger=logger)
 
     # Get the information from the events and process them
     events = helper.get_events()
@@ -122,7 +121,7 @@ def process_event(helper, *args, **kwargs):
         # Check if there is a SPL code injection
         ## If no SPL code injection is requested
         if spl_code_injection_id != "0":
-            spl_code_injections = SPLCodeInjection(spl_token=spl_token,logger=logger).get()
+            spl_code_injections = SPLCodeInjection(spl_token=token,logger=logger).get()
             if spl_code_injection_id in spl_code_injections:
                 spl_injection_code_content = spl_code_injections[spl_code_injection_id]
             else:
@@ -160,8 +159,6 @@ def process_event(helper, *args, **kwargs):
                 # Add at the given position
                 savedsearch_split.insert(macro_position, " `{macro}`\n".format(macro=macro_content))
                 savedsearch_properties["search"] = "|".join(savedsearch_split)
-            
-            logger_file.debug("017","Code injection done, new search is '{search}'".format(search=savedsearch_properties["search"]))
 
             ## Check if the savedsearch exists and if we need to recreate it
             if new_savedsearch_name in spl.saved_searches:
@@ -171,6 +168,7 @@ def process_event(helper, *args, **kwargs):
                 signature_existing = str(savedsearch_existing["search"]+str(savedsearch_existing["dispatch.earliest_time"])+str(savedsearch_existing["dispatch.latest_time"])+str(savedsearch_existing["dispatch.index_earliest"])+str(savedsearch_existing["dispatch.index_latest"])).encode('utf-8')
 
                 if hashlib.sha256(signature_new).hexdigest() != hashlib.sha256(signature_existing).hexdigest():
+                    logger_file.debug("017","Code injection done, new search is '{search}'".format(search=savedsearch_properties["search"]))
                     # It means that something changed, so we recreate it
                     logger_file.debug("019","Recreating new active but non-scheduled savedsearch: '{name}'".format(name=new_savedsearch_name))
                     if new_savedsearch_name in spl_detection_backfill.saved_searches:

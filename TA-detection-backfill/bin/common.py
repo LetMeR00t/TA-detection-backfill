@@ -415,10 +415,8 @@ class Settings(object):
             self._logging_settings = conf["logging"]
             # Set logging level
             logger.setLevel(self._logging_settings["loglevel"])
-            self.logger_file.debug("002","Logging mode set to " + str(self.logging_settings["loglevel"]))
             # Get additional parameters
             self._additional_parameters = conf["additional_parameters"]
-            self.logger_file.debug("003","Additional parameters recovered: " + str(self._additional_parameters))
      
     @property
     def logging_settings(self):
@@ -454,7 +452,7 @@ class Settings(object):
                                 conf[stanza][skey] = [value.rstrip('\n')] + [conf[skey]]
                         else:
                             conf[stanza][skey] = value.rstrip('\n')
-            self.logger_file.debug("026","Configuration "+folder+"/"+filename+" was read: "+str(conf))
+            self.logger_file.debug("026","Configuration "+folder+"/"+filename+" found: "+str(conf))
         else:
             self.logger_file.debug("027","Configuration "+folder+"/"+filename+" doesn't exist.")
         return conf
@@ -468,6 +466,6 @@ class Settings(object):
         local = self.read_conf_file('local', filename)
 
         # Recovered configuration for the filename
-        self.logger.debug("[S27] Configuration retrieved for the filename '"+filename+"': "+str({**default, **local}))
+        self.logger_file.debug("030","Merged configuration retrieved for the filename '"+filename+"': "+str({**default, **local}))
 
         return {**default, **local}
