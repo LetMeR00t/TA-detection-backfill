@@ -1,6 +1,6 @@
 <nav color="#6354B2">
-  <view name="overview" default="true" label="Overview" />é
   <collection label="Feature: Detection Backfill / Rerun">
+    <view name="overview" default="true" label="Overview" />
     <view name="create_a_detection_backfill" />
     <view name="manage_the_backlog" />
     <view name="executions" />

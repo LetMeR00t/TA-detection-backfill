@@ -56,7 +56,7 @@
 | where match(app,"$filter_app$") AND match(title,"$filter_savedsearch$")
 | lookup detection_backfill_savedsearch_monitoring app savedsearch as title OUTPUT enabled
 | fillnull value="0" enabled
-| sort 0 -enabled app savedsearch
+| sort 0 -enabled app savedsearch 
 | eval enabled = if(enabled==1,"Yes","No")
 | rename app as App, title as "Savedsearch", description as "Description", enabled as "Enabled"</query>
           <earliest>-24h@h</earliest>
