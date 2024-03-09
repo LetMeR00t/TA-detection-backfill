@@ -148,7 +148,7 @@ def process_event(helper, *args, **kwargs):
             logger_file.debug("015","Adding a 'search' command at the beginning as we are searching on an index/sourcetype (query is starting with {query_substr}...)".format(query_substr=savedsearch_search[0:15]))
             savedsearch_search = "search "+savedsearch_search
 
-        dispatch_params = {"earliest_time": dispatch_earliest, "latest_time": dispatch_latest}
+        dispatch_params = {"now": timestamp_origin, "earliest_time": dispatch_earliest, "latest_time": dispatch_latest}
 
         # Dispatch the search
         # Log all the information in order to retrieve the results in a dedicated dashboard
