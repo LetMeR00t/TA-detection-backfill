@@ -1,11 +1,11 @@
 <nav color="#6354B2">
-  <collection label="Feature: Detection Backfill / Rerun">
+  <collection label="Detection Rerun">
     <view name="overview" default="true" label="Overview" />
     <view name="create_a_detection_backfill" />
     <view name="manage_the_backlog" />
     <view name="executions" />
   </collection>
-  <collection label="Feature: Detection Healthcheck">
+  <collection label="Detection Healthcheck">
     <view name="savedsearch_monitoring_configuration" />
     <view name="2__monitoring" />
   </collection>
