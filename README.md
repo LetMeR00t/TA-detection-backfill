@@ -292,7 +292,7 @@ On the bottom of this dashboard, you can have the full details about the healthc
 
 ![Detection Healthcheck - Dashboard stats](./images/detection_healthcheck_dashboard_monitoring_details.png)
 
-> You'll notice that you can see the delta time between the original job and the healthcheck job in the "Information" column with the sentence `Healthcheck performed after 10min`. In those examples, we didn"t follow the default 6 hours mentionned previously as it was for tests purposes. If you keep the default value of 6 hours on the observed period, you will have the sentence `Healthcheck performed after 6h 0min`
+> You'll notice that you can see the delta time between the original job and the healthcheck job in the "Information" column with the sentence `Healthcheck performed after 10min`. In those examples, we didn't follow the default 6 hours mentionned previously as it was for tests purposes. If you keep the default value of 6 hours on the observed period, you will have the sentence `Healthcheck performed after 6h 0min`
 
 # Credits
 
