@@ -16,11 +16,15 @@
     - [Backlog](#backlog)
     - [Scheduling of re-runs](#scheduling-of-re-runs)
   - [Detection Healthcheck](#detection-healthcheck)
-    - [Example: Savedsearch job execution](#example-savedsearch-job-execution)
-    - [Example: Healthcheck job running with an additional scanned events (but not matching the search query)](#example-healthcheck-job-running-with-an-additional-scanned-events-but-not-matching-the-search-query)
-    - [Example: Healthcheck job running with an additional scanned events (and matching the search query without changing the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-without-changing-the-results-count)
-    - [Example: Healthcheck job running with an additional scanned events (and matching the search query with an impact on the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-with-an-impact-on-the-results-count)
-    - [Example: Healthcheck job running without any change on the available events](#example-healthcheck-job-running-without-any-change-on-the-available-events)
+    - [Explanation with examples](#explanation-with-examples)
+      - [Example: Savedsearch job execution](#example-savedsearch-job-execution)
+      - [Example: Healthcheck job running with an additional scanned events (but not matching the search query)](#example-healthcheck-job-running-with-an-additional-scanned-events-but-not-matching-the-search-query)
+      - [Example: Healthcheck job running with an additional scanned events (and matching the search query without changing the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-without-changing-the-results-count)
+      - [Example: Healthcheck job running with an additional scanned events (and matching the search query with an impact on the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-with-an-impact-on-the-results-count)
+      - [Example: Healthcheck job running without any change on the available events](#example-healthcheck-job-running-without-any-change-on-the-available-events)
+    - [Set up the monitoring for a savedsearch](#set-up-the-monitoring-for-a-savedsearch)
+    - [Understanding how healthcheck jobs are run](#understanding-how-healthcheck-jobs-are-run)
+    - [Monitor the healthcheck jobs results](#monitor-the-healthcheck-jobs-results)
 - [Credits](#credits)
 - [License](#license)
 
@@ -169,7 +173,9 @@ A `healthcheck job` is monitoring/checking those information:
 - **Events count**: Represent the total number of events that were returned by the indexers (matching events) based on the search query (index/sourcetype). Those events are then used by the rest of the search query to be processed.
 - **Results count**: Represent the total number of results returned by the savedsearch after processing the data.
 
-### Example: Savedsearch job execution
+### Explanation with examples
+
+#### Example: Savedsearch job execution
 
 Here is an example about a savedsearch named `SS1` which is executing a search query on the below indexers:
 ![Detection Healthcheck - Scans/Events/Results explanation](./images/detection_healthcheck_scans_events_results_explanation.png)
@@ -180,7 +186,7 @@ In the above example, we can see:
 - **Events count**: As the query is searching only on events with a field "id", we can see that `index=I1 sourcetype=S1` contains 3 events and `index=I3` contains 4 events with this condition. Total events count is 7.
 - **Results count**: As the query is doing a stats on the number of sourcetypes and that at least one event exists in the sourcetypes `S1 (in I1 and I3)` and `S4 (in I3)`, total results count is 2.
 
-### Example: Healthcheck job running with an additional scanned events (but not matching the search query)
+#### Example: Healthcheck job running with an additional scanned events (but not matching the search query)
 
 Let's assume in this example that we perform a healthcheck job after 12 hours knowing that:
 
@@ -193,7 +199,7 @@ Let's imagine how the healthcheck job will run:
 
 We have now 14 scanned events instead of 11. A warning will be shown in a dedicated dashboard for this search as it's not expected to have additional events after the execution of the savedsearch on the same period of time. However, as there is no impact on the events count or results count, this wasn't a major issue after all as the savedsearch didn't provide anything new.
 
-### Example: Healthcheck job running with an additional scanned events (and matching the search query without changing the results count)
+#### Example: Healthcheck job running with an additional scanned events (and matching the search query without changing the results count)
 
 Let's assume in this example that we perform a healthcheck job after 12 hours knowing that:
 
@@ -209,7 +215,7 @@ We have now 8 events returned by the indexers instead of 7. A warning will be sh
 
 > ⚠️ We are checking only the number of results, not the content. This means that additional returned events can have an impact on the results content without necessarely modifying the content.
 
-### Example: Healthcheck job running with an additional scanned events (and matching the search query with an impact on the results count)
+#### Example: Healthcheck job running with an additional scanned events (and matching the search query with an impact on the results count)
 
 Let's assume in this example that we perform a healthcheck job after 12 hours knowing that:
 
@@ -225,9 +231,68 @@ We have now 3 results instead of 2. A failed message will be shown in a dedicate
 
 > ⚠️ Again, we are checking only the number of results, not the content. This means that additional returned events can have an impact on the results content in addition to the number of results.
 
-### Example: Healthcheck job running without any change on the available events
+#### Example: Healthcheck job running without any change on the available events
 
 In this situation, we have the exact same behavior than the original search. It means that nothing changed and that the original search didn't have any issue afterall. This will be indicated through a successful healthcheck job result.
+
+### Set up the monitoring for a savedsearch
+
+Go under "Detection Healthcheck" > "1.🔧 Savedsearch monitoring configuration".
+
+In this view, you can see the list of savedsearches detected by the application on your instance. You can enable/disable the monitoring of a savedsearch by clicking on the corresponding row.
+
+![Detection Healthcheck - Set up monitoring](./images/detection_healthcheck_set_up_monitoring.png)
+
+Once enabled, it will be taken into account by the savedsearch named "Get executed and monitored savedsearches for healthcheck" (see after).
+
+> In case you want to add a batch of app/savedsearches at once, you just have to fullfil the lookup named "detection_backfill_savedsearch_monitoring" with your list with an additional field named "enabled" set to 1.
+
+> In case you're not finding your savedsearch, try to use a different "App context (REST API)" input using the available field
+
+### Understanding how healthcheck jobs are run
+
+In order to know which jobs needs to be run, this application is using a savedsearch named "Get executed and monitored savedsearches for healthcheck".
+
+![Detection Healthcheck - Savedsearch for new healthcheck jobs](./images/detection_healthcheck_savedsearch_new_healthcheck_jobs.png)
+
+This savedsearch is used to get the jobs ran over a given period, `every 5 minutes`, by the monitored savedsearches only.
+
+By default, this period is set to `Earliest time = -365min / Latest time = -360 min` which corresponds to 6 hours later. This can be customized as you want but be careful to keep a delta time of 5 minutes except if you want to run the search less often. However, be careful as running again the searches sooner might lead to performances impact and possibly missing late indexed events. Using 6 hours (even 12 hours) seems to be a good choice as it means that your savedsearches ran during the day (when the number of logs is normally the highest) will be run in a period of time when the performance impact of all searches is reduced. It's always a matter of good balance at the end as you want also to be notified as quickly as possible than a detection rule wasn't executed correctly.
+
+As you can see on the screenshot, the found events will be processed by a custom alert action in python named "Detection: Run healthcheck on the savedsearches".
+
+Any event shall contain a list of fields used to create the healthcheck jobs:
+
+- **exec_time**: Original job execution time
+- **search_id**: Original job SID
+- **app**: App containing the savedsearch
+- **savedsearch_name**: Name of the savedsearch
+- **search_et**: Original job earliest time
+- **search_lt**: Original job latest time
+- **scan_count**: Original job scan count
+- **event_count**: Original job event count
+- **result_count**: Original job result count
+
+> You can manually run healthcheck jobs over executed jobs by using this command at the end of your search: `| sendalert detection_backfill_run_healtcheck_on_savedsearches`
+
+### Monitor the healthcheck jobs results
+
+Go under "Detection Healthcheck" > "2. 📊 Healthcheck monitoring".
+
+In this view, you can see the healthcheck jobs execution and results. On the top of this dashboard, you can find several statistics about the executions over the period of time you are looking on.
+
+![Detection Healthcheck - Dashboard stats](./images/detection_healthcheck_dashboard_monitoring_stats.png)
+
+Several cases can happened:
+
+- **No healthcheck job was found**: It happens when the original job execution time is older than the last period observed by the "Get executed and monitored savedsearches for healthcheck" savedsearch or if the original job time is recent (and then, healthcheck jobs aren't run yet but will be).
+- **Found healthcheck job result**: It happens when a healthcheck job was performed over an original job. In this case you can see the results of the healthcheck job showing any success/warning/failure over the check on the scan, event or result count.
+
+On the bottom of this dashboard, you can have the full details about the healthcheck executions and see the results for each one of them. In this example, you can see the different cases that could happen for the healthcheck jobs results:
+
+![Detection Healthcheck - Dashboard stats](./images/detection_healthcheck_dashboard_monitoring_details.png)
+
+> You'll notice that you can see the delta time between the original job and the healthcheck job in the "Information" column with the sentence `Healthcheck performed after 10min`. In those examples, we didn"t follow the default 6 hours mentionned previously as it was for tests purposes. If you keep the default value of 6 hours on the observed period, you will have the sentence `Healthcheck performed after 6h 0min`
 
 # Credits
 
