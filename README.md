@@ -161,7 +161,7 @@ A custom alert action named "Run the next backfill" is executed to process as ma
 
 ## Detection Healthcheck
 
-In this application, you have the possibility to monitor your savedsearches and check if, after a certain period of time, we still have the same behavior by running a `healthcheck job`. A `healthcheck job` is simply the same search (query, earliest/latest time, etc) run again after a certain period of time **on the same timeslot than the original execution**, it's then used to check if we have the exact behavior and results regarding the original search. If some logs were missing during the original execution, we will have a different behavior and possibly results.
+In this application, you have the possibility to monitor your savedsearches and check if, after a certain period of time, we still have the same behavior by running a `healthcheck job`. A `healthcheck job` is simply the same search (query, earliest/latest time, etc) run again after a certain period of time **on the same timeslot than the original execution**, it's then used to check if we have the exact behavior and results regarding the original search. If some logs were missing during the original execution, we will have a different behavior and possibly different results (worst scenario).
 
 A `healthcheck job` is monitoring/checking those information:
 
