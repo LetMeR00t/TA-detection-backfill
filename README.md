@@ -2,30 +2,32 @@
   <img src="https://github.com/LetMeR00t/TA-detection-backfill/blob/main/images/logo.png?raw=true" alt="Logo TA-detection-backfill"/>
 </p>
 
-# Table of content
-
-- [Table of content](#table-of-content)
 - [Introduction](#introduction)
   - [Problem to solve](#problem-to-solve)
   - [Consequences](#consequences)
-  - [Solution](#solution)
 - [Use Cases](#use-cases)
-- [Functionalities](#functionalities)
-- [Installation](#installation)
-- [Configuration](#configuration)
+- [Installation \& Configuration](#installation--configuration)
   - [Logging](#logging)
 - [Usage](#usage)
-  - [Create a detection backfill](#create-a-detection-backfill)
-    - [From the dashboard](#from-the-dashboard)
-    - [From any search using a custom command and custom alert action](#from-any-search-using-a-custom-command-and-custom-alert-action)
-  - [Backlog](#backlog)
-  - [Scheduling of re-runs](#scheduling-of-re-runs)
+  - [Detection Rerun](#detection-rerun)
+    - [Create a backfill batch](#create-a-backfill-batch)
+      - [From the dashboard](#from-the-dashboard)
+      - [From any search using a custom command and custom alert action](#from-any-search-using-a-custom-command-and-custom-alert-action)
+    - [Backlog](#backlog)
+    - [Scheduling of re-runs](#scheduling-of-re-runs)
+  - [Detection Healthcheck](#detection-healthcheck)
+    - [Example: Savedsearch job execution](#example-savedsearch-job-execution)
+    - [Example: Healthcheck job running with an additional scanned events (but not matching the search query)](#example-healthcheck-job-running-with-an-additional-scanned-events-but-not-matching-the-search-query)
+    - [Example: Healthcheck job running with an additional scanned events (and matching the search query without changing the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-without-changing-the-results-count)
+    - [Example: Healthcheck job running with an additional scanned events (and matching the search query with an impact on the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-with-an-impact-on-the-results-count)
+    - [Example: Healthcheck job running without any change on the available events](#example-healthcheck-job-running-without-any-change-on-the-available-events)
 - [Credits](#credits)
 - [License](#license)
 
 # Introduction
 
 ## Problem to solve
+
 This TA can be used to **fill in detection gaps following a period of data collection interruption/disruption**.
 Several scenarios can be overseen:
 
@@ -47,16 +49,6 @@ For the scenario 1, it results as:
 For the scenario 2, it results as:
 ![Context - Savedsearches not running properly for scenario 2](./images/context_savedsearch_not_running_properly_scenario2.png)
 
-## Solution
-
-Once data are recovered in Splunk, this application can be used to restart scheduled searches during this outage.
-
-For the scenario 1, it results as:
-![Context - Savedsearches rerun for scenario 1](./images/context_savedsearch_rerun_scenario1.png)
-
-For the scenario 2, it results as:
-![Context - Savedsearches rerun for scenario 2](./images/context_savedsearch_rerun_scenario2.png)
-
 Detection backfill naming is a reference to the data backfilling process which aims to recover old data to fill gaps. As we are focusing on re-running savedsearches or correlation searches, we are talking about detection backfilling.
 
 # Use Cases
@@ -72,21 +64,9 @@ This application can interest you if you are looking for:
 
 As we build up the individual savedsearches so that they are rerun in the same context as they should have been run, this means that you can reschedule these searches, even over large periods, as the backlog will be filled with all the time slots that need to be covered. Even if thousands of time slots are created in the backlog, they will be processed progressively at the speed at which you want them to run.
 
-# Functionalities
-
-This application is providing you several features to achieve your goal:
-
-- An easy way to add new tasks into the backlog from a custom alert action or to re-run manually backfills
-- A dedicated dashboard is helping you to find all the re-runs needed to be dispatched by providing an outage period range and a regexp to match all the savedsearches concerned.
-- You can set up multiple re-run batches to have dedicated re-run groups. These batches can have different priorities in the backlog in order to be re-run more or less quickly.
-- You can manage the backlog to remove non-essential re-run if needed
-- You have a full audit dashboard to help you understanding the execution/progress of the re-runs and identify any issue quickly
-
-# Installation
+# Installation & Configuration
 
 This application doesn't require any specific installation setup to be running as it's based on Splunk core functionalities. It can be installed and used as is.
-
-# Configuration
 
 ## Logging
 
@@ -105,9 +85,19 @@ You will be able to have these logs in your search.log too.
 
 # Usage
 
-## Create a detection backfill
+## Detection Rerun
 
-### From the dashboard
+Once data are recovered in Splunk, this application can be used to restart scheduled searches during this outage.
+
+For the scenario 1, it results as:
+![Context - Savedsearches rerun for scenario 1](./images/context_savedsearch_rerun_scenario1.png)
+
+For the scenario 2, it results as:
+![Context - Savedsearches rerun for scenario 2](./images/context_savedsearch_rerun_scenario2.png)
+
+### Create a backfill batch
+
+#### From the dashboard
 
 ![Create detection backfill](images/create_detection_backfill.png)
 *Dashboard: Create a detection backfill*
@@ -124,7 +114,7 @@ The priority order is:
 
 For example, if you create a batch with a priority "High (1)" and an existing batch is already existing in the backlog with a priority "Medium (2)", the new created batch will be processed in priority.
 
-### From any search using a custom command and custom alert action
+#### From any search using a custom command and custom alert action
 
 Actually, the dashboard is using a custom command to generate all the re-run.
 You can use the command as this:
@@ -147,7 +137,7 @@ In order to add new backfills into the backlog, you can rely on a custom alert a
 ![Custom alert action: Add a backfill to the backlog](images/custom_alert_action_add_backfill_to_backlog.png)
 *Custom alert action: Add a backfill to the backlog*
 
-## Backlog
+### Backlog
 
 ![Backlog](images/backlog.png)
 *Dashboard: Manage the backlog*
@@ -158,7 +148,7 @@ Each time a new batch is added to the backlog, it's sorted by "Batch priority" (
 
 In this dashboard, you can list all re-runs or delete one of the savedsearch re-run.
 
-## Scheduling of re-runs
+### Scheduling of re-runs
 
 ![Run the next scheduled detection backfill](images/custom_alert_action_rerun.png)
 *Savedsearch: Run the next scheduled detection backfill and Custom alert action: Run the next backfill*
@@ -168,6 +158,76 @@ Re-runs scheduling is made using a dedicated scheduled savedsearch in the applic
 A custom alert action named "Run the next backfill" is executed to process as many tasks in the backlog as events from the search.
 
 > **Note**: As you can see, you can select if you want (or not) execute the triggers of your savedsearches if the trigger condition is met. If yes, then all trigger actions (custom alert actions) will be executed as soon as the re-run job is finished.
+
+## Detection Healthcheck
+
+In this application, you have the possibility to monitor your savedsearches and check if, after a certain period of time, we still have the same behavior by running a `healthcheck job`. A `healthcheck job` is simply the same search (query, earliest/latest time, etc) run again after a certain period of time, it's then used to check if we have the exact behavior and results regarding the original search. If some logs were missing during the original execution, we will have a different behavior and possibly results.
+
+A `healthcheck job` is monitoring/checking those information:
+
+- **Scans count**: Represent the total number of events that were scanned by the search query (index/sourcetype)
+- **Events count**: Represent the total number of events that were returned by the indexers (matching events) based on the search query (index/sourcetype). Those events are then used by the rest of the search query to be processed.
+- **Results count**: Represent the total number of results returned by the savedsearch after processing the data.
+
+### Example: Savedsearch job execution
+
+Here is an example about a savedsearch named `SS1` which is executing a search query on the below indexers:
+![Detection Healthcheck - Scans/Events/Results explanation](./images/detection_healthcheck_scans_events_results_explanation.png)
+
+In the above example, we can see:
+
+- **Scans count**: We are scanning `index=I1` and `index=I3` which contains respectively 6 and 5 events in total. Total scans count is 11.
+- **Events count**: As the query is searching only on events with a field "id", we can see that `index=I1 sourcetype=S1` contains 3 events and `index=I3` contains 4 events with this condition. Total events count is 7.
+- **Results count**: As the query is doing a stats on the number of sourcetypes and that at least one event exists in the sourcetypes `S1 (in I1 and I3)` and `S4 (in I3)`, total results count is 2.
+
+### Example: Healthcheck job running with an additional scanned events (but not matching the search query)
+
+Let's assume in this example that we perform a healthcheck job after 12 hours knowing that:
+
+- 3 new events were recovered after the savedsearch execution and should have been considered at the time of the search
+- Those events aren't matching the search query (and thus, don't change the results count)
+
+Let's imagine how the healthcheck job will run:
+
+![Detection Healthcheck - Additional events with no impact on returned events or results](./images/detection_healthcheck_example_1.png)
+
+We have now 14 scanned events instead of 11. A warning will be shown in a dedicated dashboard for this search as it's not expected to have additional events after the execution of the savedsearch on the same period of time. However, as there is no impact on the events count or results count, this wasn't a major issue after all as the savedsearch didn't provide anything new.
+
+### Example: Healthcheck job running with an additional scanned events (and matching the search query without changing the results count)
+
+Let's assume in this example that we perform a healthcheck job after 12 hours knowing that:
+
+- 3 new events were recovered after the savedsearch execution and should have been considered at the time of the search
+- 1 of those events is matching the search query
+- Those events don't impact the results count
+
+Let's imagine how the healthcheck job will run:
+
+![Detection Healthcheck - Additional events with impact on returned events but not on results](./images/detection_healthcheck_example_2.png)
+
+We have now 8 events returned by the indexers instead of 7. A warning will be shown in a dedicated dashboard for this search as it's not expected to have additional events after the execution of the savedsearch on the same period of time. However, as there is no impact on the results count, this wasn't a major issue after all as the savedsearch didn't provide anything new. Still, it's important to notice that this issue is more serious than the previous example as it could have lead to a direct impact on the savedsearch results.
+
+> ⚠️ We are checking only the number of results, not the content. This means that additional returned events can have an impact on the results content without necessarely modifying the content.
+
+### Example: Healthcheck job running with an additional scanned events (and matching the search query with an impact on the results count)
+
+Let's assume in this example that we perform a healthcheck job after 12 hours knowing that:
+
+- 3 new events were recovered after the savedsearch execution and should have been considered at the time of the search
+- 1 of those events is matching the search query
+- This event is impacting the results count
+
+Let's imagine how the healthcheck job will run:
+
+![Detection Healthcheck - Additional events with impact on returned events and results](./images/detection_healthcheck_example_3.png)
+
+We have now 3 results instead of 2. A failed message will be shown in a dedicated dashboard for this search as it's not expected to have a different number of results after the execution of the savedsearch on the same period of time. This is the most critical scenario when additional events indexed after the original search have a direct impact on the results count. In this case, it would be better to dispatch again the savedsearch on the given period and trigger again the alerts actions (and this could be done with the "rerun" feature of this application).
+
+> ⚠️ Again, we are checking only the number of results, not the content. This means that additional returned events can have an impact on the results content in addition to the number of results.
+
+### Example: Healthcheck job running without any change on the available events
+
+In this situation, we have the exact same behavior than the original search. It means that nothing changed and that the original search didn't have any issue afterall. This will be indicated through a successful healthcheck job result.
 
 # Credits
 
