@@ -7,6 +7,7 @@ import globals
 import sys
 import datetime
 import tzlocal
+import json
 import splunklib.client as client
 from common import Settings, LoggerFile
 
@@ -76,8 +77,6 @@ def process_event(helper, *args, **kwargs):
     # Get the information from the events and process them
     events = helper.get_events()
 
-    current_app = None
-    current_savedsearch = None
     spl = None
     savedsearch = None
 
@@ -104,7 +103,7 @@ def process_event(helper, *args, **kwargs):
                 sys.exit(5)
 
         ## Get the savedsearch and dispatch again the search
-        sid_origin = event["search_id"]
+        sid_origin = event["search_id"].replace("'","")
         timestamp_origin = int(event["exec_time"])
         timestamp_origin_readeable = datetime.datetime.fromtimestamp(timestamp_origin,tz=tzlocal.get_localzone()).strftime("%c %z")
         scan_count_origin = event["scan_count"]
@@ -159,5 +158,31 @@ def process_event(helper, *args, **kwargs):
 
         logger_file.info("040","Healthcheck job for sid_origin {sid_origin} for the savedsearch '{app}/{savedsearch}' was dispatched. SID of the healthcheck job is '{job_sid}'. First job was run at '{time}' ({time_readable}) with an original scan count was '{scan_count}', event count was '{event_count}' and result count was '{result_count}'".format(sid_origin=sid_origin,app=app,savedsearch=savedsearch_name,job_sid=job.sid,time=timestamp_origin,time_readable=timestamp_origin_readeable,scan_count=scan_count_origin,event_count=event_count_origin,result_count=result_count_origin))
 
+        event_message = {
+            "type": "healthcheck:job_dispatched",
+            "jobs": {
+                "origin": {
+                    "sid": sid_origin,
+                    "timestamp": timestamp_origin,
+                    "timestamp_readable": timestamp_origin_readeable,
+                    "scan_count": scan_count_origin,
+                    "event_count": event_count_origin,
+                    "result_count": result_count_origin
+                },
+                "healthcheck": {
+                    "sid": str(job.sid).replace("'","")
+                }
+            },
+            "app": app,
+            "savedsearch_name": savedsearch_name,
+        }
+
+        # Add event to be indexed
+        logger_file.debug("045","Add event to be indexed...")
+        helper.addevent(raw=json.dumps(event_message), sourcetype="detection_backfill:events")
+    
+    # Index events
+    logger_file.debug("050","Write events to be indexed...")
+    helper.writeevents(index=configuration.additional_parameters["index_results"], host=helper.settings["server_host"], source="app:detection_backfill")
 
     return 0
