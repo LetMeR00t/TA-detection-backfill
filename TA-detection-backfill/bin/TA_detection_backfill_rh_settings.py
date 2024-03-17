@@ -34,6 +34,16 @@ fields_additional_parameters = [
             min_val=60, 
             max_val=31536000, 
         )
+    ),
+    field.RestField(
+        'index_results',
+        required=True,
+        encrypted=False,
+        default='main',
+        validator=validator.String(
+            min_len=1, 
+            max_len=8192, 
+        )
     )
 ]
 model_additional_parameters = RestModel(fields_additional_parameters, name='additional_parameters')

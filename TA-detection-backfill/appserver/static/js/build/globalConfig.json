@@ -145,6 +145,22 @@
                                     ]
                                 }
                             ]
+                        },
+                        {
+                            "field": "index_results",
+                            "label": "Index for results",
+                            "type": "text",
+                            "help": "Indicates the index used by the advanced monitoring to store the results and compare them (original and healthcheck job)",
+                            "required": true,
+                            "defaultValue": "main",
+                            "validators": [
+                                {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 8192,
+                                    "errorMsg": "Length should be between 1 and 8192"
+                                }
+                            ]
                         }
                     ]
                 }
