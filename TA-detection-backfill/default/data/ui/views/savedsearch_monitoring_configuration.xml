@@ -6,6 +6,12 @@
     <set token="action_remove_instance">❌ Remove this instance</set>
   </init>
   <fieldset submitButton="false">
+    <input type="dropdown" token="advanced">
+      <label>[Configuration] Advanced monitoring</label>
+      <choice value="0">No</choice>
+      <choice value="1">Yes</choice>
+      <default>0</default>
+    </input>
     <input type="text" token="filter_app">
       <label>[Filter] App</label>
       <default>.*</default>
@@ -31,6 +37,37 @@
   </fieldset>
   <row>
     <panel>
+      <title>Number of monitored savedsearches</title>
+      <single>
+        <search>
+          <progress>
+            <unset token="search_enrichment"></unset>
+          </progress>
+          <done>
+            <condition match="'result.count' &gt; 0">
+              <set token="search_enrichment">| lookup detection_backfill_savedsearch_monitoring app savedsearch as title OUTPUT enabled, advanced</set>
+            </condition>
+            <condition>
+              <set token="search_enrichment"></set>
+            </condition>
+          </done>
+          <query>| inputlookup detection_backfill_savedsearch_monitoring
+| eval last_refresh = "$last_refresh$"
+| stats count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
       <title>List of savedsearches</title>
       <input type="dropdown" token="app_context">
         <label>App context (REST API)</label>
@@ -51,13 +88,13 @@
         <search>
           <query>| rest /servicesNS/-/$app_context$/saved/searches splunk_server=local
 | rename eai:acl.app as app
-| eval last_refresh = "$last_refresh$"
 | table app, title, description
 | where match(app,"$filter_app$") AND match(title,"$filter_savedsearch$")
-| lookup detection_backfill_savedsearch_monitoring app savedsearch as title OUTPUT enabled
+$search_enrichment$
 | fillnull value="0" enabled
 | sort 0 -enabled app savedsearch 
-| eval enabled = if(enabled==1,"Yes","No")
+| eval enabled = if(enabled==1,if(advanced=1,"Yes: Advanced monitoring","Yes: Standard monitoring"),"No")
+| table app, title, description, enabled
 | rename app as App, title as "Savedsearch", description as "Description", enabled as "Enabled"</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
@@ -72,7 +109,7 @@
         <option name="totalsRow">false</option>
         <option name="wrap">true</option>
         <format type="color" field="Enabled">
-          <colorPalette type="map">{"No":#D41F1F,"Yes":#118832}</colorPalette>
+          <colorPalette type="map">{"No":#D41F1F,"Yes: Standard monitoring":#55C169,"Yes: Advanced monitoring":#118832}</colorPalette>
         </format>
         <format type="color" field="App">
           <colorPalette type="sharedList"></colorPalette>
@@ -99,8 +136,8 @@
           <query>| inputlookup detection_backfill_savedsearch_monitoring
 | append [
         | makeresults
-        | eval app="$switch_app$", savedsearch="$switch_savedsearch$", enabled=0
-        | table app, savedsearch, enabled]
+        | eval app="$switch_app$", savedsearch="$switch_savedsearch$", enabled=0, advanced=$advanced$
+        | table app, savedsearch, enabled, advanced]
 | dedup app, savedsearch
 | eval enabled = if(app=="$switch_app$" and savedsearch=="$switch_savedsearch$",1-enabled,enabled)
 | where enabled == 1
