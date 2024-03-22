@@ -220,7 +220,7 @@ def process_event(helper, *args, **kwargs):
             logger_file.error("040","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information")
             sys.exit(40)
 
-        logger_file.info("050","Job for the savedsearch '"+app+"/"+savedsearch["name"]+"' dispatched was created as if the current time was "+dispatch_time_readable+" ("+str(dispatch_time)+"). Job SID '"+job.sid+"' dispatched from backfill uid '"+task["bf_uid"]+"', batch '"+task["bf_batch_name"].replace("'","\"")+"' ("+task["bf_batch_id"]+")")
+        logger_file.info("050","Job for the savedsearch '"+app+"/"+savedsearch["name"]+"' dispatched was created as if the current time was "+dispatch_time_readable+" ("+str(dispatch_time)+"). Job SID '"+job.sid+"' dispatched from backfill uid '"+task["bf_uid"]+"', batch '"+task["batch_name"].replace("'","\"")+"' ("+task["bf_batch_id"]+")")
 
         # If we recreated a savedsearch, enable/disable it just for this execution
         if app == "TA-detection-backfill":
