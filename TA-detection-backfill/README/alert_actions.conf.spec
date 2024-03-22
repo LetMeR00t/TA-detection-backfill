@@ -16,7 +16,12 @@ param.trigger = <string> Indicates if you want to execute or not the triggers (a
 [detection_backfill_run_healthcheck_on_savedsearches]
 python.version = python3
 param._cam = <json> Active response parameters.
+param.dispatch_as = <string> Indicates how the healthcheck job shall be dispatch as (either an ad-hoc search or a dispatched savedsearch)
 
 [detection_backfill_index_results_from_sid]
+python.version = python3
+param._cam = <json> Active response parameters.
+
+[detection_backfill_add_a_healthcheck_task_to_the_backlog]
 python.version = python3
 param._cam = <json> Active response parameters.
