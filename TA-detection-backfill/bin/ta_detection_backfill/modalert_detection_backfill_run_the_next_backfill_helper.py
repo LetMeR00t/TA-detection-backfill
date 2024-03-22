@@ -76,7 +76,9 @@ def process_event(helper, *args, **kwargs):
     configuration = Settings(spl_detection_backfill, helper.settings, logger)
 
     # Get backlog
-    backlog = Backlog(spl_token=token,logger=logger)
+    lookup_file_name = "detection_backfill_rerun_backlog.csv"
+    lookup_headers = ["bf_uid","bf_created_time","bf_created_author","batch_name","batch_priority","bf_batch_id","bf_spl_code_injection_id","bf_trigger","app","savedsearch","dispatch_time"]
+    backlog = Backlog(name="Backlog - Rerun", lookup_file_name=lookup_file_name ,lookup_headers=lookup_headers ,spl_token=token ,logger=logger)
 
     # Get the information from the events and process them
     events = helper.get_events()

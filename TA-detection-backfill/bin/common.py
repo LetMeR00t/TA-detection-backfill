@@ -225,16 +225,25 @@ class RelativeTime(object):
             self.logger_file.debug("036","Relative time - Result: {0} ({1})".format(self.time_original,self.datetime_calculated.strftime("%c %z")))
 
 class Backlog(object):
-    def __init__(self, spl_token=None, logger=None):
+    def __init__(self, name: str, lookup_file_name: str, lookup_headers: list, spl_token: str = None, logger: str = None):
+        """ This function is used to initialize a Backlog object
+
+        Args:
+            name (str): Name of the backlog
+            lookup_file_name (str): Name of the file lookup to use as a backlog
+            lookup_headers (list): List of headers to use to initiate the lookup if empty
+            spl_token (str, optional): _description_. Defaults to None.
+            logger (str, optional): _description_. Defaults to None.
+        """
         # Initialize all settings to None
         self.logger = logger
         self.logger_file = LoggerFile(logger, "B")
         self.namespace = "TA-detection-backfill"
         self.directory = os.path.join(os.environ['SPLUNK_HOME'], 'etc', 'apps', self.namespace, 'lookups')
-        self.backlog_file_name = "detection_backfill_backlog.csv"
+        self.backlog_file_name = lookup_file_name
         self.backlog_file = os.path.join(self.directory, self.backlog_file_name)
         self.backlog_file_tmp = os.path.join(os.environ['SPLUNK_HOME'], 'var', 'run', 'splunk', 'lookup_tmp', "tmp_{0}_".format(random.randint(1,10000))+"_"+self.backlog_file_name)
-        self.headers = sorted(["bf_uid","bf_created_time","bf_created_author","bf_batch_name","bf_priority","bf_batch_id","bf_spl_code_injection_id","bf_trigger","app","savedsearch","dispatch_time"])
+        self.headers = sorted(lookup_headers)
         self.spl_service = client.Service(token=spl_token)
 
         # Create the file if it's not existing or empty (issue with headers not existing)
@@ -248,7 +257,7 @@ class Backlog(object):
     def create_lookup_backlog(self):
         """ This function is used to create a backlog lookup if it doesn't exist """
 
-        # if it does not exist, create detection_backfill_backlog.csv
+        # if it does not exist, create detection_backfill_rerun_backlog.csv
         self.logger_file.info("005","Initialize backlog file: " + str(self.backlog_file))
 
         # file backlog_file.csv doesn't exist or misconfigured. Create the file
@@ -304,23 +313,32 @@ class Backlog(object):
         tasks = self.get()
         original_tasks_count = len(tasks)
         if len(tasks) >= count:
+            self.logger_file.debug("032","Backlog size ({size}) is bigger than the number of tasks to process ({count})".format(size=len(tasks),count=count))
             for i in range(0,count):
                 task = tasks.pop(0)
                 tasks_todo.append(task)
-                self.logger_file.info("035","Backlog recovered, got next task: {0}".format(task))
+                self.logger_file.debug("033","Backlog recovered, got next task #{i}: {task}".format(i=i,task=task))
         elif len(tasks) > 0 and len(tasks) < count:
+            self.logger_file.debug("034","Backlog size ({size}) is smaller than the number of tasks to process ({count})".format(size=len(tasks),count=count))
             for i in range(0,len(tasks)):
                 task = tasks.pop(0)
                 tasks_todo.append(task)
-                self.logger_file.info("035","Backlog recovered, got next task: {0}".format(task))
-        if original_tasks_count >0:
+                self.logger_file.debug("035","Backlog recovered, got next task #{i}: {task}".format(i=i,task=task))
+        if original_tasks_count > 0:
             tasks = self.set(tasks)
         return tasks_todo
 
     def set(self, tasks = []) -> bool:
         """ This function is used to set a list of tasks (overwrite) to the backlog. Returns a boolean to know if tasks were set or not"""
         check = True
-        backlog_sorted = sorted(tasks, key=lambda d: (int(d['bf_priority']),d['bf_batch_name'])) 
+        backlog_sorted = []
+
+        # Sort the backlog if not empty
+        if len(tasks) > 0:
+            if "orig_exec_time" in tasks[0]:
+                backlog_sorted = sorted(tasks, key=lambda d: (int(d['batch_priority']),d['orig_exec_time']))
+            else:
+                backlog_sorted = sorted(tasks, key=lambda d: (int(d['batch_priority']),d['batch_name'])) 
         # Write the results if checks are successful
         try:
             with open(self.backlog_file_tmp, 'w', newline='') as file_object:

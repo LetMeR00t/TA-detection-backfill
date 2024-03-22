@@ -84,7 +84,7 @@ def process_event(helper, *args, **kwargs):
 
     # Get backlog
     spl_token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]
-    backlog = Backlog(spl_token=spl_token,logger=logger)
+    backlog = Backlog(name="Backlog - Rerun", lookup_file_name=lookup_file_name ,lookup_headers=lookup_headers ,spl_token=spl_token ,logger=logger)
 
     # Get the information from the events and process them
     events = helper.get_events()
