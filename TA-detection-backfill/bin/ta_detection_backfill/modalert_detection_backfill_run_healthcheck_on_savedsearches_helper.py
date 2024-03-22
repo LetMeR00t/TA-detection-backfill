@@ -9,7 +9,7 @@ import datetime
 import tzlocal
 import json
 import splunklib.client as client
-from common import Settings, LoggerFile
+from common import Settings, LoggerFile, Backlog
 
 def process_event(helper, *args, **kwargs):
     """
@@ -56,17 +56,20 @@ def process_event(helper, *args, **kwargs):
 
     # Build the context around the Splunk instance
     owner = helper.settings["owner"]
-    token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]
+    spl_token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]
     sid = helper.settings["sid"]
     globals.log_context = "[sid={0}]".format(sid)
 
     # Default app is the current one
     app = "TA-detection-backfill"
 
+    # Get some parameters
+    dispath_method = helper.get_param("dispath_method")
+
     # Try to connect to the Splunk API for the Detection Backfill app
     logger_file.debug("001","Connecting to Splunk API with the app context set to {app}...".format(app=app))
     try:
-        spl_detection_backfill = client.connect(app=app, owner=owner, token=token)
+        spl_detection_backfill = client.connect(app=app, owner=owner, token=spl_token)
         logger_file.debug("002","Connected to Splunk API successfully")
     except Exception as e:
         logger_file.error("003","{}".format(e.msg))
@@ -74,54 +77,53 @@ def process_event(helper, *args, **kwargs):
     # Get settings
     configuration = Settings(spl_detection_backfill, helper.settings, logger)
 
+    # Get backlog
+    lookup_file_name = "detection_backfill_healthcheck_backlog.csv"
+    lookup_headers= ["hc_uid", "hc_created_time","hc_created_author", "batch_name", "batch_priority", "orig_exec_time", "orig_search_id", "app", "savedsearch_name", "orig_search_et", "orig_search_lt", "orig_scan_count", "orig_event_count", "orig_result_count"]
+    backlog = Backlog(name="Backlog - Healthcheck", lookup_file_name=lookup_file_name ,lookup_headers=lookup_headers ,spl_token=spl_token ,logger=logger)
+
     # Get the information from the events and process them
     events = helper.get_events()
+    counter = 0
+    for event in events:
+        counter += 1
 
-    spl = None
-    savedsearch = None
+    logger_file.info("004","Counter set to {0}. Will process the first {0} elements of the backlog...".format(str(counter)))
 
+    # Get next task
+    tasks = backlog.next_tasks(counter)
+
+    if tasks == []:
+        logger_file.info("005","Backlog is empty, nothing to rerun.")
+
+    # Savedsearch cache
     savedsearches = {}
 
-    # Process each event
-    for event in events:
-
-        # Splunk makes a bunch of dumb empty multivalue fields
-        # replace value by multivalue if required
-        logger_file.debug("010","Row before pre-processing: " + str(event))
-        for key, value in event.items():
-            if not key.startswith("__mv_") and "__mv_" + key in event and event["__mv_" + key] not in [None, '']:
-                event[key] = [e[1:len(e) - 1] for e in event["__mv_" + key].split(";")]
-        # we filter those out here
-        event = {key: value for key, value in event.items() if not key.startswith("__mv_") and key not in ["rid"]}
-        logger_file.debug("011","Row after pre-processing: " + str(event))
-
-        # Check that the event does have the required parameters
-        expected_fields = ["exec_time", "search_id", "app", "savedsearch_name", "search_et", "search_lt", "scan_count", "event_count", "result_count"]
-        for p in expected_fields:
-            if p not in event:
-                logger_file.error("015","A required field wasn't found in the event: '{field}'. Expected fields are: {expected_fields}".format(field=p,expected_fields=expected_fields))
-                sys.exit(5)
+    for task in tasks:
 
         ## Get the savedsearch and dispatch again the search
-        sid_origin = event["search_id"].replace("'","")
-        timestamp_origin = int(event["exec_time"])
+        hc_uid = task["hc_uid"]
+        hc_created_time = task["hc_created_time"]
+        hc_created_author = task["hc_created_author"]
+        timestamp_origin = int(task["orig_exec_time"])
         timestamp_origin_readeable = datetime.datetime.fromtimestamp(timestamp_origin,tz=tzlocal.get_localzone()).strftime("%c %z")
-        scan_count_origin = event["scan_count"]
-        event_count_origin = event["event_count"]
-        result_count_origin = event["result_count"]
-        dispatch_earliest = event["search_et"]
-        dispatch_latest = event["search_lt"]
-        app = event["app"]
-        savedsearch_name = event["savedsearch_name"]
+        sid_origin = task["orig_search_id"]
+        app = task["app"]
+        savedsearch_name = task["savedsearch_name"]
+        dispatch_earliest = task["orig_search_et"]
+        dispatch_latest = task["orig_search_lt"]
+        scan_count_origin = task["orig_scan_count"]
+        event_count_origin = task["orig_event_count"]
+        result_count_origin = task["orig_result_count"]
         savedsearch_key = app+"/"+savedsearch_name
-
-        logger_file.info("006","Process this event: {0}".format(str(event)))
+        
+        logger_file.info("006","Process this task: {0}".format(str(task)))
 
         if savedsearch_key not in savedsearches:
             # Try to connect to the Splunk API
             logger_file.debug("007","Connecting to Splunk API with the app context set to {app}...".format(app=app))
             try:
-                spl = client.connect(app=app, owner=owner, token=token)
+                spl = client.connect(app=app, owner=owner, token=spl_token)
                 logger_file.debug("008","Connected to Splunk API successfully")
             except Exception as e:
                 logger_file.error("009","{}".format(e.msg))
@@ -156,10 +158,13 @@ def process_event(helper, *args, **kwargs):
         except Exception as e:
             logger_file.error("025","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information. {e}".format(e=e))
 
-        logger_file.info("040","Healthcheck job for sid_origin {sid_origin} for the savedsearch '{app}/{savedsearch}' was dispatched. SID of the healthcheck job is '{job_sid}'. First job was run at '{time}' ({time_readable}) with an original scan count was '{scan_count}', event count was '{event_count}' and result count was '{result_count}'".format(sid_origin=sid_origin,app=app,savedsearch=savedsearch_name,job_sid=job.sid,time=timestamp_origin,time_readable=timestamp_origin_readeable,scan_count=scan_count_origin,event_count=event_count_origin,result_count=result_count_origin))
+        logger_file.info("040","Healthcheck job '{uid}' for original SID {sid_origin} for the savedsearch '{app}/{savedsearch}' was dispatched. SID of the healthcheck job is '{job_sid}'. First job was run at '{time}' ({time_readable}) with an original scan count was '{scan_count}', event count was '{event_count}' and result count was '{result_count}'".format(uid=hc_uid,sid_origin=sid_origin,app=app,savedsearch=savedsearch_name,job_sid=job.sid,time=timestamp_origin,time_readable=timestamp_origin_readeable,scan_count=scan_count_origin,event_count=event_count_origin,result_count=result_count_origin))
 
         event_message = {
             "type": "healthcheck:job_dispatched",
+            "uid": hc_uid,
+            "created_time": hc_created_time,
+            "created_author": hc_created_author,
             "jobs": {
                 "origin": {
                     "sid": sid_origin,
@@ -178,11 +183,11 @@ def process_event(helper, *args, **kwargs):
         }
 
         # Add event to be indexed
-        logger_file.debug("045","Add event to be indexed...")
+        logger_file.debug("045","Creating a 'healthcheck:job_dispatched' event to be indexed...")
         helper.addevent(raw=json.dumps(event_message), sourcetype="detection_backfill:events")
     
     # Index events
-    logger_file.debug("050","Write events to be indexed...")
+    logger_file.debug("050","Write all 'healthcheck:job_dispatched' events to be indexed...")
     helper.writeevents(index=configuration.additional_parameters["index_results"], host=helper.settings["server_host"], source="app:detection_backfill")
 
     return 0
