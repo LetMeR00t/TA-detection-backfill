@@ -6,13 +6,13 @@
 
         <div class="controls">
 
-        <input type="text" name="action.detection_backfill_add_a_backfill_to_the_backlog.param.batch_name" id="detection_backfill_add_a_backfill_to_the_backlog_batch_name"/>
+            <input type="text" name="action.detection_backfill_add_a_backfill_to_the_backlog.param.batch_name" id="detection_backfill_add_a_backfill_to_the_backlog_batch_name"/>
 
-                    <span class="help-block"> 
+            <span class="help-block"> 
 
-                        Indicates the name of the batch (representing all savedsearches to be rerun). Free text, only informational for you.
+                Indicates the name of the batch (representing all savedsearches to be rerun). Free text, only informational for you.
 
-                    </span>
+            </span>
 
         </div>
 
@@ -24,7 +24,19 @@
 
         <div class="controls">
 
-        <input type="text" name="action.detection_backfill_add_a_backfill_to_the_backlog.param.batch_priority" id="detection_backfill_add_a_backfill_to_the_backlog_batch_priority"/>
+        <select name="action.detection_backfill_add_a_backfill_to_the_backlog.param.batch_priority" id="detection_backfill_add_a_backfill_to_the_backlog_batch_priority">
+            
+            <option value="0">Highest (0)</option>
+
+            <option value="1">High (1)</option>
+
+            <option value="2">Medium (2)</option>
+
+            <option value="3">Low (3)</option>
+
+            <option value="4">Lowest (4)</option>
+            
+        </select>
 
                     <span class="help-block"> 
 
@@ -114,19 +126,19 @@
     
         <div class="controls">
     
-    <select name="action.detection_backfill_add_a_backfill_to_the_backlog.param.trigger" id="detection_backfill_add_a_backfill_to_the_backlog_trigger">
-    
-            <option value="0">False</option>
+            <select name="action.detection_backfill_add_a_backfill_to_the_backlog.param.trigger" id="detection_backfill_add_a_backfill_to_the_backlog_trigger">
+            
+                    <option value="0">False</option>
 
-            <option value="1">True</option>
-    
-    </select>
-    
-                    <span class="help-block"> 
-    
-                        Indicates if you want to execute or not the triggers (alert actions) associated to the savedsearches
-    
-                    </span>
+                    <option value="1">True</option>
+            
+            </select>
+        
+            <span class="help-block"> 
+
+                Indicates if you want to execute or not the triggers (alert actions) associated to the savedsearches
+
+            </span>
     
         </div>
     

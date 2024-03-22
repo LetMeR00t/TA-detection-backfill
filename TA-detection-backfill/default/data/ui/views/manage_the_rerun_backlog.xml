@@ -1,5 +1,5 @@
 <form version="1.1">
-  <label>2.🔧 Manage the backlog</label>
+  <label>2.🔧 Manage the Rerun backlog</label>
   <description>This dashboard is used to manage the current detection backfill backlog</description>
   <init>
     <eval token="last_refresh">now()</eval>
@@ -46,13 +46,13 @@
       <table>
         <title>This is the current list of detection backfill already setup within the backlog to be processed</title>
         <search>
-          <query>| inputlookup detection_backfill_backlog
+          <query>| inputlookup detection_backfill_rerun_backlog
 | lookup detection_backfill_spl_code_injections id as bf_spl_code_injection_id OUTPUT name as bf_spl_code_injection_name
-| eval dispatch_time = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z"), bf_created_time = strftime(bf_created_time,"%Y-%m-%d %H:%M:%S %z"), bf_spl_code_injection_id = "("+bf_spl_code_injection_id+") "+bf_spl_code_injection_name, bf_trigger = if(bf_trigger==1,"Yes","No"), last_refresh = "1709447936", action=case("list"=="remove","❌ Remove this instance",1==1,"-")
+| eval dispatch_time = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z"), bf_created_time = strftime(bf_created_time,"%Y-%m-%d %H:%M:%S %z"), bf_spl_code_injection_id = "("+bf_spl_code_injection_id+") "+bf_spl_code_injection_name, bf_trigger = if(bf_trigger==1,"Yes","No"), last_refresh = "$last_refresh$", action=case("list"=="remove","❌ Remove this instance",1==1,"-")
 | fillnull value="None" bf_spl_code_injection_id
 | where match(app,"$filter_app$") AND match(savedsearch,"$filter_savedsearch$")
-| table bf_batch_name, bf_batch_id, bf_uid, bf_priority, app, savedsearch, dispatch_time, bf_spl_code_injection_id, bf_trigger, bf_created_time, bf_created_author, action
-| rename app as "App", savedsearch as "Savedsearch", bf_batch_id as "Batch ID", bf_batch_name as "Batch name", bf_spl_code_injection_id as "SPL Injection code", bf_trigger as "Trigger actions", bf_created_author as "Batch created by", bf_created_time as "Batch created on", bf_priority as "Priority", dispatch_time as "Will be rerun on (dispatch time)", action as "Action"</query>
+| table batch_name, bf_batch_id, bf_uid, batch_priority, app, savedsearch, dispatch_time, bf_spl_code_injection_id, bf_trigger, bf_created_time, bf_created_author, action
+| rename app as "App", savedsearch as "Savedsearch", bf_batch_id as "Batch ID", batch_name as "Batch name", bf_spl_code_injection_id as "SPL Injection code", bf_trigger as "Trigger actions", bf_created_author as "Batch created by", bf_created_time as "Batch created on", batch_priority as "Priority", dispatch_time as "Will be rerun on (dispatch time)", action as "Action"</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
           <sampleRatio>1</sampleRatio>
@@ -100,9 +100,9 @@
             <eval token="last_refresh">now()</eval>
             <unset token="remove_id"></unset>
           </done>
-          <query>| inputlookup detection_backfill_backlog
+          <query>| inputlookup detection_backfill_rerun_backlog
 | where bf_uid!="$remove_id$"
-| outputlookup detection_backfill_backlog</query>
+| outputlookup detection_backfill_rerun_backlog</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
           <sampleRatio>1</sampleRatio>
