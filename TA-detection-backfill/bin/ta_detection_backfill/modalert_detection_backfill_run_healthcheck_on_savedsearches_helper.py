@@ -64,7 +64,7 @@ def process_event(helper, *args, **kwargs):
     app = "TA-detection-backfill"
 
     # Get some parameters
-    dispath_method = helper.get_param("dispath_method")
+    dispatch_as = helper.get_param("dispatch_as")
 
     # Try to connect to the Splunk API for the Detection Backfill app
     logger_file.debug("001","Connecting to Splunk API with the app context set to {app}...".format(app=app))
@@ -99,95 +99,116 @@ def process_event(helper, *args, **kwargs):
     # Savedsearch cache
     savedsearches = {}
 
-    for task in tasks:
+    if len(tasks) > 0:
 
-        ## Get the savedsearch and dispatch again the search
-        hc_uid = task["hc_uid"]
-        hc_created_time = task["hc_created_time"]
-        hc_created_author = task["hc_created_author"]
-        timestamp_origin = int(task["orig_exec_time"])
-        timestamp_origin_readeable = datetime.datetime.fromtimestamp(timestamp_origin,tz=tzlocal.get_localzone()).strftime("%c %z")
-        sid_origin = task["orig_search_id"]
-        app = task["app"]
-        savedsearch_name = task["savedsearch_name"]
-        dispatch_earliest = task["orig_search_et"]
-        dispatch_latest = task["orig_search_lt"]
-        scan_count_origin = task["orig_scan_count"]
-        event_count_origin = task["orig_event_count"]
-        result_count_origin = task["orig_result_count"]
-        savedsearch_key = app+"/"+savedsearch_name
-        
-        logger_file.info("006","Process this task: {0}".format(str(task)))
+        for task in tasks:
 
-        if savedsearch_key not in savedsearches:
-            # Try to connect to the Splunk API
-            logger_file.debug("007","Connecting to Splunk API with the app context set to {app}...".format(app=app))
-            try:
-                spl = client.connect(app=app, owner=owner, token=spl_token)
-                logger_file.debug("008","Connected to Splunk API successfully")
-            except Exception as e:
-                logger_file.error("009","{}".format(e.msg))
-
-            # Get the context of the savedsearch            
-            try:
-                savedsearches[savedsearch_key] = spl.saved_searches[savedsearch_name]
-                logger_file.debug("010","Savedsearch '"+app+"/"+savedsearch_name+"' successfully recovered and cached.")
-            except Exception as e:
-                logger_file.error("011","The savedsearch '"+app+"/"+savedsearch_name+"' can't be found. Check if there is any misconfiguration (app, savedsearch name or permissions (minimum shared within the app)")
+            ## Get the savedsearch and dispatch again the search
+            hc_uid = task["hc_uid"]
+            hc_created_time = task["hc_created_time"]
+            hc_created_author = task["hc_created_author"]
+            timestamp_origin = int(task["orig_exec_time"])
+            timestamp_origin_readeable = datetime.datetime.fromtimestamp(timestamp_origin,tz=tzlocal.get_localzone()).strftime("%c %z")
+            sid_origin = task["orig_search_id"]
+            app = task["app"]
+            savedsearch_name = task["savedsearch_name"]
+            dispatch_earliest = task["orig_search_et"]
+            dispatch_latest = task["orig_search_lt"]
+            scan_count_origin = task["orig_scan_count"]
+            event_count_origin = task["orig_event_count"]
+            result_count_origin = task["orig_result_count"]
+            savedsearch_key = app+"/"+savedsearch_name
             
-        else:
-            logger_file.debug("014","Savedsearch '"+app+"/"+savedsearch_name+"' is already retrieved from the previous event, continue with the same data...")
-    
-        # Get the savedsearch
-        savedsearch = savedsearches[savedsearch_key]
+            logger_file.info("006","Process this task: {0}".format(str(task)))
 
-        # Get the search content
-        savedsearch_search = savedsearch["search"]
+            if savedsearch_key not in savedsearches:
+                # Try to connect to the Splunk API
+                logger_file.debug("007","Connecting to Splunk API with the app context set to {app}...".format(app=app))
+                try:
+                    spl = client.connect(app=app, owner=owner, token=spl_token)
+                    logger_file.debug("008","Connected to Splunk API successfully")
+                except Exception as e:
+                    logger_file.error("009","{}".format(e.msg))
 
-        # Add a "search" command if needed
-        if savedsearch_search[0] != "|" and not savedsearch_search.startswith("search"):
-            logger_file.debug("015","Adding a 'search' command at the beginning as we are searching on an index/sourcetype (query is starting with {query_substr}...)".format(query_substr=savedsearch_search[0:15]))
-            savedsearch_search = "search "+savedsearch_search
+                # Get the context of the savedsearch            
+                try:
+                    savedsearches[savedsearch_key] = spl.saved_searches[savedsearch_name]
+                    logger_file.debug("010","Savedsearch '"+app+"/"+savedsearch_name+"' successfully recovered and cached.")
+                except Exception as e:
+                    logger_file.error("011","The savedsearch '"+app+"/"+savedsearch_name+"' can't be found. Check if there is any misconfiguration (app, savedsearch name or permissions (minimum shared within the app)")
+                
+            else:
+                logger_file.debug("014","Savedsearch '"+app+"/"+savedsearch_name+"' is already retrieved from the previous event, continue with the same data...")
+        
+            # Get the savedsearch
+            savedsearch = savedsearches[savedsearch_key]
 
-        dispatch_params = {"now": timestamp_origin, "earliest_time": dispatch_earliest, "latest_time": dispatch_latest}
+            # Get the search content
+            savedsearch_search = savedsearch["search"]
 
-        # Dispatch the search
-        # Log all the information in order to retrieve the results in a dedicated dashboard
-        try:
-            job = spl.jobs.create(query=savedsearch_search, **dispatch_params)
-        except Exception as e:
-            logger_file.error("025","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information. {e}".format(e=e))
+            # Add a "search" command if needed
+            if savedsearch_search[0] != "|" and not savedsearch_search.startswith("search"):
+                logger_file.debug("015","Adding a 'search' command at the beginning as we are searching on an index/sourcetype (query is starting with {query_substr}...)".format(query_substr=savedsearch_search[0:15]))
+                savedsearch_search = "search "+savedsearch_search
 
-        logger_file.info("040","Healthcheck job '{uid}' for original SID {sid_origin} for the savedsearch '{app}/{savedsearch}' was dispatched. SID of the healthcheck job is '{job_sid}'. First job was run at '{time}' ({time_readable}) with an original scan count was '{scan_count}', event count was '{event_count}' and result count was '{result_count}'".format(uid=hc_uid,sid_origin=sid_origin,app=app,savedsearch=savedsearch_name,job_sid=job.sid,time=timestamp_origin,time_readable=timestamp_origin_readeable,scan_count=scan_count_origin,event_count=event_count_origin,result_count=result_count_origin))
+            dispatch_params = None
+            job = None
 
-        event_message = {
-            "type": "healthcheck:job_dispatched",
-            "uid": hc_uid,
-            "created_time": hc_created_time,
-            "created_author": hc_created_author,
-            "jobs": {
-                "origin": {
-                    "sid": sid_origin,
-                    "timestamp": timestamp_origin,
-                    "timestamp_readable": timestamp_origin_readeable,
-                    "scan_count": scan_count_origin,
-                    "event_count": event_count_origin,
-                    "result_count": result_count_origin
+            # Dispatch the search depend on the way selected
+            if dispatch_as == "adhoc":
+
+                dispatch_params = {"now": timestamp_origin, "earliest_time": dispatch_earliest, "latest_time": dispatch_latest}
+
+                try:
+                    job = spl.jobs.create(query=savedsearch_search, **dispatch_params)
+                except Exception as e:
+                    logger_file.error("020","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information. {e}".format(e=e))
+
+            elif dispatch_as == "savedsearch":
+
+                dispatch_params = {"dispatch.ttl": configuration.additional_parameters["dispatch_ttl"], "dispatch.earliest_time": dispatch_earliest, "dispatch.latest_time": dispatch_latest, "force_dispatch": True, "trigger_actions": False}
+
+                try:
+                    job = savedsearch.dispatch(**dispatch_params)
+                except Exception as e:
+                    logger_file.error("021","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information")
+                    sys.exit(40)
+
+            else:
+                logger_file.error("022","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched as the dispatch method isn't known. Got {dispatch_as} when available values are 'adhoc' or 'savedsearch'".format(dispatch_as=dispatch_as))
+
+            logger_file.info("040","Healthcheck job '{uid}' for original SID {sid_origin} for the savedsearch '{app}/{savedsearch}' was dispatched. SID of the healthcheck job is '{job_sid}'. First job was run at '{time}' ({time_readable}) with an original scan count was '{scan_count}', event count was '{event_count}' and result count was '{result_count}'".format(uid=hc_uid,sid_origin=sid_origin,app=app,savedsearch=savedsearch_name,job_sid=job.sid,time=timestamp_origin,time_readable=timestamp_origin_readeable,scan_count=scan_count_origin,event_count=event_count_origin,result_count=result_count_origin))
+
+            # Log all the information in order to retrieve the results in a dedicated dashboard
+
+            event_message = {
+                "type": "healthcheck:job_dispatched",
+                "uid": hc_uid,
+                "created_time": hc_created_time,
+                "created_author": hc_created_author,
+                "jobs": {
+                    "origin": {
+                        "sid": sid_origin,
+                        "timestamp": timestamp_origin,
+                        "timestamp_readable": timestamp_origin_readeable,
+                        "scan_count": scan_count_origin,
+                        "event_count": event_count_origin,
+                        "result_count": result_count_origin
+                    },
+                    "healthcheck": {
+                        "sid": str(job.sid).replace("'","")
+                    }
                 },
-                "healthcheck": {
-                    "sid": str(job.sid).replace("'","")
-                }
-            },
-            "app": app,
-            "savedsearch_name": savedsearch_name,
-        }
+                "app": app,
+                "savedsearch_name": savedsearch_name,
+            }
 
-        # Add event to be indexed
-        logger_file.debug("045","Creating a 'healthcheck:job_dispatched' event to be indexed...")
-        helper.addevent(raw=json.dumps(event_message), sourcetype="detection_backfill:events")
-    
-    # Index events
-    logger_file.debug("050","Write all 'healthcheck:job_dispatched' events to be indexed...")
-    helper.writeevents(index=configuration.additional_parameters["index_results"], host=helper.settings["server_host"], source="app:detection_backfill")
+            # Add event to be indexed
+            logger_file.debug("045","Creating a 'healthcheck:job_dispatched' event to be indexed...")
+            helper.addevent(raw=json.dumps(event_message), sourcetype="detection_backfill:events")
+        
+        # Index events
+        logger_file.debug("050","Write all 'healthcheck:job_dispatched' events to be indexed...")
+        helper.writeevents(index=configuration.additional_parameters["index_results"], host=helper.settings["server_host"], source="app:detection_backfill")
 
     return 0
