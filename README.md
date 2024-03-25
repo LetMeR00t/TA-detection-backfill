@@ -23,7 +23,10 @@
       - [Example: Healthcheck job running with an additional scanned events (and matching the search query with an impact on the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-with-an-impact-on-the-results-count)
       - [Example: Healthcheck job running without any change on the available events](#example-healthcheck-job-running-without-any-change-on-the-available-events)
     - [Set up the monitoring for a savedsearch](#set-up-the-monitoring-for-a-savedsearch)
+        - [What is the difference between "standard" and "advanced" monitoring?](#what-is-the-difference-between-standard-and-advanced-monitoring)
+      - [What is the consequence to enable the monitoring for one search?](#what-is-the-consequence-to-enable-the-monitoring-for-one-search)
     - [Understanding how healthcheck jobs are run](#understanding-how-healthcheck-jobs-are-run)
+    - [Understanding how the healthcheck jobs backlog is processed](#understanding-how-the-healthcheck-jobs-backlog-is-processed)
     - [Monitor the healthcheck jobs results](#monitor-the-healthcheck-jobs-results)
 - [Credits](#credits)
 - [License](#license)
@@ -243,7 +246,14 @@ In this view, you can see the list of savedsearches detected by the application 
 
 ![Detection Healthcheck - Set up monitoring](./images/detection_healthcheck_set_up_monitoring.png)
 
-Once enabled, it will be taken into account by the savedsearch named "Get executed and monitored savedsearches for healthcheck" (see after).
+##### What is the difference between "standard" and "advanced" monitoring?
+
+- **Standard** monitoring means that scan, event and result count will be checked based on the audittrail logs only
+- **Advanced** monitoring means that it's the standard monitoring in addition to a deep analysis of the results for each savedsearch to detect a change in the result content (and not only the count). **Advanced** monitoring applied on savedsearches will have for consequence to enable another savedsearch which will index all the results from the jobs in a dedicated index to analyze and compare them between the original and the healthcheck jobs.
+
+#### What is the consequence to enable the monitoring for one search?
+
+Once enabled, it will be taken into account by the savedsearch named "Healthcheck: Get executed jobs of monitored savedsearches and add them in the backlog" (see after).
 
 > In case you want to add a batch of app/savedsearches at once, you just have to fullfil the lookup named "detection_backfill_savedsearch_monitoring" with your list with an additional field named "enabled" set to 1.
 
@@ -251,15 +261,15 @@ Once enabled, it will be taken into account by the savedsearch named "Get execut
 
 ### Understanding how healthcheck jobs are run
 
-In order to know which jobs needs to be run, this application is using a savedsearch named "Get executed and monitored savedsearches for healthcheck".
+In order to know which jobs needs to be run, this application is using a savedsearch named "Healthcheck: Get executed jobs of monitored savedsearches and add them in the backlog".
 
 ![Detection Healthcheck - Savedsearch for new healthcheck jobs](./images/detection_healthcheck_savedsearch_new_healthcheck_jobs.png)
 
-This savedsearch is used to get the jobs ran over a given period, `every 5 minutes`, by the monitored savedsearches only.
+This savedsearch is used to get the jobs ran over a given period, `every 5 minutes`, on the monitored savedsearches only.
 
 By default, this period is set to `Earliest time = -365min / Latest time = -360 min` which corresponds to 6 hours later. This can be customized as you want but be careful to keep a delta time of 5 minutes except if you want to run the search less often. However, be careful as running again the searches sooner might lead to performances impact and possibly missing late indexed events. Using 6 hours (even 12 hours) seems to be a good choice as it means that your savedsearches ran during the day (when the number of logs is normally the highest) will be run in a period of time when the performance impact of all searches is reduced. It's always a matter of good balance at the end as you want also to be notified as quickly as possible than a detection rule wasn't executed correctly.
 
-As you can see on the screenshot, the found events will be processed by a custom alert action in python named "Detection: Run healthcheck on the savedsearches".
+As you can see on the screenshot, the found events will be processed by a custom alert action in python named "Detection Backfill: Add a healthcheck task to the backlog" which will add the found jobs to be processed accordingly to a backlog mechanism.
 
 Any event shall contain a list of fields used to create the healthcheck jobs:
 
@@ -273,7 +283,21 @@ Any event shall contain a list of fields used to create the healthcheck jobs:
 - **event_count**: Original job event count
 - **result_count**: Original job result count
 
-> You can manually run healthcheck jobs over executed jobs by using this command at the end of your search: `| sendalert detection_backfill_run_healtcheck_on_savedsearches`
+> You can manually this commmand over executed jobs by using this one at the end of your search: `| sendalert detection_backfill_add_a_healthcheck_task_to_the_backlog`
+
+### Understanding how the healthcheck jobs backlog is processed
+
+Once your new healthcheck jobs are scheduled in the backlog (which is actually a simple lookup), another search named "Healthcheck: Run the next healthcheck jobs from the backlog".
+
+![Detection Healthcheck - Run the next healthcheck jobs](./images/detection_healthcheck_run_the_next_healthcheck_jobs.png)
+
+The number of events returned by this savedsearch is used to determine how many events shall be processed at once from the backlog lookup. The periodicity, which is by default 5 minutes, determines how often the backlog shall be processed. You can customize those parameters as you wish.
+
+> By default, the cron tab is set up to be launched every 5 minutes but you can optimize this to execute the savedsearch only at night or during the week-end if you don't want to consume too much resources from your search heads.
+
+As you can see on the screenshot, events will be processed by a custom alert action in python named "Detection Backfill: Run healthcheck on the savedsearches" which will dispatch the healthcheck jobs accordingly to the number of events given from the search (the content isn't useful, only the number of events is). You can customize if you want to dispatch your healthcheck jobs as "ad-hoc" searches (creates a job)  or as another instance of the "savedsearch" object (dispatch the savedsearch).
+
+> You can manually this commmand over executed jobs by using this one at the end of your search: `| sendalert detection_backfill_run_healtcheck_on_savedsearches`
 
 ### Monitor the healthcheck jobs results
 
@@ -285,7 +309,7 @@ In this view, you can see the healthcheck jobs execution and results. On the top
 
 Several cases can happened:
 
-- **No healthcheck job was found**: It happens when the original job execution time is older than the last period observed by the "Get executed and monitored savedsearches for healthcheck" savedsearch or if the original job time is recent (and then, healthcheck jobs aren't run yet but will be).
+- **No healthcheck job was found**: It happens when the original job execution time is older than the last period observed by the "Healthcheck: Get executed jobs of monitored savedsearches and add them in the backlog" savedsearch or if the original job time is recent (and then, healthcheck jobs aren't run yet but will be).
 - **Found healthcheck job result**: It happens when a healthcheck job was performed over an original job. In this case you can see the results of the healthcheck job showing any success/warning/failure over the check on the scan, event or result count.
 
 On the bottom of this dashboard, you can have the full details about the healthcheck executions and see the results for each one of them. In this example, you can see the different cases that could happen for the healthcheck jobs results:
