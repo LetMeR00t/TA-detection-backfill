@@ -16,6 +16,10 @@ class AlertActionWorkerdetection_backfill_add_a_healthcheck_task_to_the_backlog(
 
     def validate_params(self):
 
+        if not self.get_param("batch_priority"):
+            self.log_error('batch_priority is a mandatory parameter, but its value is None.')
+            return False
+
         return True
 
     def process_event(self, *args, **kwargs):
