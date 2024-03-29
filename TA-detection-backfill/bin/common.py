@@ -325,6 +325,7 @@ class Backlog(object):
                 tasks_todo.append(task)
                 self.logger_file.debug("035","Backlog recovered, got next task #{i}: {task}".format(i=i,task=task))
         if original_tasks_count > 0:
+            self.logger_file.debug("036","Updating backlog tasks by removing the processed ones...")
             tasks = self.set(tasks)
         return tasks_todo
 
@@ -346,7 +347,7 @@ class Backlog(object):
                 for task in backlog_sorted:
                     writer.writerow(task)
         except IOError:
-            self.logger_file.error("040","FATAL {} could not be opened in write mode".format(self.headers))
+            self.logger_file.error("038","FATAL {} could not be opened in write mode".format(self.headers))
         # Store results in the CSV file through the Splunk API for lookup replication
         query = {"eai:data": self.backlog_file_tmp, "output_mode": "json"}
         self.spl_post(uri="data/lookup-table-files/{0}".format(self.backlog_file_name),**query)
