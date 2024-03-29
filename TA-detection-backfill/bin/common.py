@@ -332,11 +332,10 @@ class Backlog(object):
         """ This function is used to set a list of tasks (overwrite) to the backlog. Returns a boolean to know if tasks were set or not"""
         check = True
         backlog_sorted = []
-
         # Sort the backlog if not empty
         if len(tasks) > 0:
             if "orig_exec_time" in tasks[0]:
-                backlog_sorted = sorted(tasks, key=lambda d: (int(d['batch_priority']),d['orig_exec_time']))
+                backlog_sorted = sorted(tasks, key=lambda d: (int(d['batch_priority']),int(d['orig_exec_time'])))
             else:
                 backlog_sorted = sorted(tasks, key=lambda d: (int(d['batch_priority']),d['batch_name'])) 
         # Write the results if checks are successful
@@ -348,11 +347,9 @@ class Backlog(object):
                     writer.writerow(task)
         except IOError:
             self.logger_file.error("040","FATAL {} could not be opened in write mode".format(self.headers))
-        
         # Store results in the CSV file through the Splunk API for lookup replication
         query = {"eai:data": self.backlog_file_tmp, "output_mode": "json"}
         self.spl_post(uri="data/lookup-table-files/{0}".format(self.backlog_file_name),**query)
-
         self.logger_file.info("041","Backlog updated: {0} tasks written".format(len(backlog_sorted)))
         return check
 
