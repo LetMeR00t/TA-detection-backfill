@@ -25,3 +25,4 @@ param._cam = <json> Active response parameters.
 [detection_backfill_add_a_healthcheck_task_to_the_backlog]
 python.version = python3
 param._cam = <json> Active response parameters.
+param.batch_priority = <string> Batch priority. It's a required parameter. It's default value is 2.
