@@ -15,6 +15,8 @@
       - [From any search using a custom command and custom alert action](#from-any-search-using-a-custom-command-and-custom-alert-action)
     - [Backlog](#backlog)
     - [Scheduling of re-runs](#scheduling-of-re-runs)
+    - [Code injection for reruns](#code-injection-for-reruns)
+- [TODO](#todo)
   - [Detection Healthcheck](#detection-healthcheck)
     - [Explanation with examples](#explanation-with-examples)
       - [Example: Savedsearch job execution](#example-savedsearch-job-execution)
@@ -28,6 +30,8 @@
     - [Understanding how healthcheck jobs are run](#understanding-how-healthcheck-jobs-are-run)
     - [Understanding how the healthcheck jobs backlog is processed](#understanding-how-the-healthcheck-jobs-backlog-is-processed)
     - [Monitor the healthcheck jobs results](#monitor-the-healthcheck-jobs-results)
+    - [Advanced monitoring: Get results content comparaison](#advanced-monitoring-get-results-content-comparaison)
+- [TODO](#todo-1)
 - [Credits](#credits)
 - [License](#license)
 
@@ -166,9 +170,15 @@ A custom alert action named "Run the next backfill" is executed to process as ma
 
 > **Note**: As you can see, you can select if you want (or not) execute the triggers of your savedsearches if the trigger condition is met. If yes, then all trigger actions (custom alert actions) will be executed as soon as the re-run job is finished.
 
+### Code injection for reruns
+
+# TODO
+
 ## Detection Healthcheck
 
-In this application, you have the possibility to monitor your savedsearches and check if, after a certain period of time, we still have the same behavior by running a `healthcheck job`. A `healthcheck job` is simply the same search (query, earliest/latest time, etc) run again after a certain period of time **on the same timeslot than the original execution**, it's then used to check if we have the exact behavior and results regarding the original search. If some logs were missing during the original execution, we will have a different behavior and possibly different results (worst scenario).
+In this application, you have the possibility to monitor your savedsearches and check if, after a certain period of time, you still have the same behavior by running a `healthcheck job`.
+
+A `healthcheck job` is simply the same search (query, earliest/latest time, etc) run again after a certain period of time **on the same timeslot than the original execution**, it's then used to check if we have the exact behavior and results regarding the original search. If some logs were missing during the original execution, we will have a different behavior and possibly different results (worst scenario).
 
 A `healthcheck job` is monitoring/checking those information:
 
@@ -317,6 +327,10 @@ On the bottom of this dashboard, you can have the full details about the healthc
 ![Detection Healthcheck - Dashboard stats](./images/detection_healthcheck_dashboard_monitoring_details.png)
 
 > You'll notice that you can see the delta time between the original job and the healthcheck job in the "Information" column with the sentence `Healthcheck performed after 10min`. In those examples, we didn't follow the default 6 hours mentionned previously as it was for tests purposes. If you keep the default value of 6 hours on the observed period, you will have the sentence `Healthcheck performed after 6h 0min`
+
+### Advanced monitoring: Get results content comparaison
+
+# TODO
 
 # Credits
 
