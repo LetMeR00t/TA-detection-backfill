@@ -1,0 +1,165 @@
+<form version="1.1">
+  <label>4. 🔍 Results analysis (Advanced monitoring)</label>
+  <description>This dashboard is used to analyze results between and original job and its healthcheck job</description>
+  <fieldset submitButton="false">
+    <input type="text" token="uid">
+      <label>Healthcheck UID</label>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>SID: Original job $test$</title>
+      <single>
+        <search>
+          <query>| makeresults
+| eval text = "$sid_origin$"
+| table text</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">50</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <title>SID: Healthcheck job</title>
+      <single>
+        <search>
+          <query>| makeresults
+| eval text = "$sid_healthcheck$"
+| table text</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">50</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Signature check</title>
+      <single>
+        <search>
+          <query>| loadjob $sid_results$
+| eventstats values(result_sha256) as results_sha256 by sid
+| eval signature = sha256(mvjoin(results_sha256,","))
+| stats dc(signature) as check
+| eval text = case(check==0,"Advanced monitoring is not enabled or not yet executed",check==1,"✅ Results are the same",1==1,"❌ Results are different") 
+| table text</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Original job results details executed at '$time_origin_readable$':</title>
+      <table>
+        <search>
+          <query>| loadjob $sid_results$
+| search sid="$sid_origin$"
+| table result.*
+| rename result.* as *
+| transpose column_name="results"
+| rename "row 1" as row
+| eval results = results+" = "+row
+| table results
+| where isnotnull(results)
+| rename results as "Results (&lt;field&gt; = &lt;value)"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+    <panel>
+      <title>Healthcheck job results details executed at '$time_healthcheck_readable$':</title>
+      <table>
+        <search>
+          <query>| loadjob $sid_results$
+| search sid="$sid_healthcheck$"
+| table result.*
+| rename result.* as *
+| transpose column_name="results"
+| rename "row 1" as row
+| eval results = results+" = "+row
+| table results
+| where isnotnull(results)
+| rename results as "Results (&lt;field&gt; = &lt;value)"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row depends="$debug$">
+    <panel>
+      <title>[Debug] Get SIDs from UID</title>
+      <table>
+        <search>
+          <done>
+            <set token="sid_origin">$result.sid_origin$</set>
+            <set token="sid_healthcheck">$result.sid_healthcheck$</set>
+            <set token="min_time">$result.min_time$</set>
+            <eval token="time_origin_readable">strftime(strptime($result.time_origin$,"%s"),"%Y-%m-%d %H:%M:%S")</eval>
+            <eval token="time_healthcheck_readable">strftime(strptime($result.time_healthcheck$,"%s"),"%Y-%m-%d %H:%M:%S")</eval>
+            <set token="max_time">$result.max_time$</set>
+          </done>
+          <query>(sourcetype=detection_backfill:events type=healthcheck:job_dispatched uid=$uid$)
+OR 
+(index=_audit sourcetype=audittrail action=search info!="granted" [search sourcetype=detection_backfill:events type=healthcheck:job_dispatched uid=$uid$ | rename "jobs.healthcheck.sid" as search_id | eval search_id = "'"+search_id+"'" | table search_id])
+| eventstats max(_time) as time_healthcheck
+| search sourcetype="detection_backfill:events"
+| rename "jobs.origin.sid" as sid_origin, "jobs.healthcheck.sid" as sid_healthcheck, "jobs.origin.timestamp" as time_origin, _time as time_healthcheck
+| table sid_origin, sid_healthcheck, time_origin, time_healthcheck
+| eval min_time = relative_time(time_origin,"-5min@min"), max_time = relative_time(time_healthcheck,"+6h@h")</query>
+          <earliest>-365d@d</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row depends="$debug$">
+    <panel>
+      <title>[Debug] Get results from SIDs and timerange</title>
+      <table>
+        <search>
+          <done>
+            <set token="sid_results">$job.sid$</set>
+          </done>
+          <query>(sourcetype=detection_backfill:events type=healthcheck:job_result) sid IN ("$sid_origin$","$sid_healthcheck$")
+| table result.* sid result_sha256</query>
+          <earliest>$min_time$</earliest>
+          <latest>$max_time$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>
