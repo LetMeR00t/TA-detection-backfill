@@ -10,13 +10,13 @@
   - [Logging](#logging)
 - [Usage](#usage)
   - [Detection Rerun](#detection-rerun)
+    - [Detection Rerun in a diagram](#detection-rerun-in-a-diagram)
     - [Create a backfill batch](#create-a-backfill-batch)
       - [From the dashboard](#from-the-dashboard)
       - [From any search using a custom command and custom alert action](#from-any-search-using-a-custom-command-and-custom-alert-action)
     - [Backlog](#backlog)
     - [Scheduling of re-runs](#scheduling-of-re-runs)
     - [Code injection for reruns](#code-injection-for-reruns)
-- [TODO](#todo)
   - [Detection Healthcheck](#detection-healthcheck)
     - [Explanation with examples](#explanation-with-examples)
       - [Example: Savedsearch job execution](#example-savedsearch-job-execution)
@@ -24,14 +24,17 @@
       - [Example: Healthcheck job running with an additional scanned events (and matching the search query without changing the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-without-changing-the-results-count)
       - [Example: Healthcheck job running with an additional scanned events (and matching the search query with an impact on the results count)](#example-healthcheck-job-running-with-an-additional-scanned-events-and-matching-the-search-query-with-an-impact-on-the-results-count)
       - [Example: Healthcheck job running without any change on the available events](#example-healthcheck-job-running-without-any-change-on-the-available-events)
+    - [Detection Healthcheck in a diagram](#detection-healthcheck-in-a-diagram)
     - [Set up the monitoring for a savedsearch](#set-up-the-monitoring-for-a-savedsearch)
-        - [What is the difference between "standard" and "advanced" monitoring?](#what-is-the-difference-between-standard-and-advanced-monitoring)
+      - [What is the difference between "standard" and "advanced" monitoring?](#what-is-the-difference-between-standard-and-advanced-monitoring)
       - [What is the consequence to enable the monitoring for one search?](#what-is-the-consequence-to-enable-the-monitoring-for-one-search)
     - [Understanding how healthcheck jobs are run](#understanding-how-healthcheck-jobs-are-run)
     - [Understanding how the healthcheck jobs backlog is processed](#understanding-how-the-healthcheck-jobs-backlog-is-processed)
     - [Monitor the healthcheck jobs results](#monitor-the-healthcheck-jobs-results)
     - [Advanced monitoring: Get results content comparaison](#advanced-monitoring-get-results-content-comparaison)
-- [TODO](#todo-1)
+      - [Case #1: Same results](#case-1-same-results)
+    - [Case #2: Results are different](#case-2-results-are-different)
+    - [Case #3: Advanced monitoring isn't enabled](#case-3-advanced-monitoring-isnt-enabled)
 - [Credits](#credits)
 - [License](#license)
 
@@ -100,11 +103,17 @@ You will be able to have these logs in your search.log too.
 
 Once data are recovered in Splunk, this application can be used to restart scheduled searches during this outage.
 
+![Detection Rerun - User workflow](./images/detection_rerun_user_workflow.png)
+
 For the scenario 1, it results as:
 ![Context - Savedsearches rerun for scenario 1](./images/context_savedsearch_rerun_scenario1.png)
 
 For the scenario 2, it results as:
 ![Context - Savedsearches rerun for scenario 2](./images/context_savedsearch_rerun_scenario2.png)
+
+### Detection Rerun in a diagram
+
+![Detection Rerun - Diagram](./images/detection_rerun_in_a_diagram.png)
 
 ### Create a backfill batch
 
@@ -172,7 +181,23 @@ A custom alert action named "Run the next backfill" is executed to process as ma
 
 ### Code injection for reruns
 
-# TODO
+During reruns, you can perform a SPL code injection if you need to change the behavior of the original savedsearch (it might happened). In that case, you have a dedicated dashboard for it named "SPL code injection settings":
+
+![SPL Code Injection](./images/detection_rerun_spl_code_injection.png)
+
+If you want to add a new SPL code injection, you can do so by chosing the corresponding input:
+
+![SPL Code Injection - Add](./images/detection_rerun_spl_code_injection_add.png)
+
+A SPL code injection requires:
+
+- **Macro**: Which macro (containing SPL code) do you want to inject
+- **Position**: What is the position in the existing savedsearch SPL code at which you want to put the macro. "0" means at the beginning of the SPL search and "-1" means at the end of the SPL search. Any other value will be considered as the position in the code (example: 2 means that the macro will be added after the line #2)
+- **Name**: A free name used to reference easily what it's used for.
+
+**Any SPL code injection will create a new savedsearch which is a copy of the original one with the SPL search modified following the selected SPL code injection**. Here are some examples of the code injection results:
+
+![SPL Code Injection - Explanation](./images/detection_rerun_spl_code_injection_explanation.png)
 
 ## Detection Healthcheck
 
@@ -185,6 +210,8 @@ A `healthcheck job` is monitoring/checking those information:
 - **Scans count**: Represent the total number of events that were scanned by the search query (index/sourcetype)
 - **Events count**: Represent the total number of events that were returned by the indexers (matching events) based on the search query (index/sourcetype). Those events are then used by the rest of the search query to be processed.
 - **Results count**: Represent the total number of results returned by the savedsearch after processing the data.
+
+![Detection Rerun - User workflow](./images/detection_healthcheck_user_workflow.png)
 
 ### Explanation with examples
 
@@ -248,6 +275,10 @@ We have now 3 results instead of 2. A failed message will be shown in a dedicate
 
 In this situation, we have the exact same behavior than the original search. It means that nothing changed and that the original search didn't have any issue afterall. This will be indicated through a successful healthcheck job result.
 
+### Detection Healthcheck in a diagram
+
+![Detection Healthcheck - Diagram](./images/detection_healthcheck_in_a_diagram.png)
+
 ### Set up the monitoring for a savedsearch
 
 Go under "Detection Healthcheck" > "1.🔧 Savedsearch monitoring configuration".
@@ -256,7 +287,7 @@ In this view, you can see the list of savedsearches detected by the application 
 
 ![Detection Healthcheck - Set up monitoring](./images/detection_healthcheck_set_up_monitoring.png)
 
-##### What is the difference between "standard" and "advanced" monitoring?
+#### What is the difference between "standard" and "advanced" monitoring?
 
 - **Standard** monitoring means that scan, event and result count will be checked based on the audittrail logs only
 - **Advanced** monitoring means that it's the standard monitoring in addition to a deep analysis of the results for each savedsearch to detect a change in the result content (and not only the count). **Advanced** monitoring applied on savedsearches will have for consequence to enable another savedsearch which will index all the results from the jobs in a dedicated index to analyze and compare them between the original and the healthcheck jobs.
@@ -330,7 +361,26 @@ On the bottom of this dashboard, you can have the full details about the healthc
 
 ### Advanced monitoring: Get results content comparaison
 
-# TODO
+When you are on the "3. 📊 Healthcheck monitoring" dashboard, you click on each result of the table to get a deeper analysis of the results when advanced monitoring is configured.
+
+![Detection Healthcheck - Advanced monitoring results](./images/detection_healthcheck_advanced_monitoring_results.png)
+
+#### Case #1: Same results
+
+When results content of both jobs are the same, this is the kind of view you should have.
+
+![Detection Healthcheck - Advanced monitoring with same results](./images/detection_healthcheck_advanced_monitoring_same_results.png)
+
+### Case #2: Results are different
+
+When results content of both jobs are different, this is the kind of view you should have.
+You'll note that we can see which result in which job was not found in the other job.
+
+![Detection Healthcheck - Advanced monitoring with same results](./images/detection_healthcheck_advanced_monitoring_different_results.png)
+
+### Case #3: Advanced monitoring isn't enabled
+
+Until you configured the savedsearch to be in an "advanced" monitoring in the dashboard named "1.🔧 Savedsearch monitoring configuration", you'll not have any result detailed.
 
 # Credits
 
