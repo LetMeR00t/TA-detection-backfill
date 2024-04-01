@@ -15,10 +15,6 @@ class AlertActionWorkerdetection_backfill_run_the_next_backfill(ModularAlertBase
         super(AlertActionWorkerdetection_backfill_run_the_next_backfill, self).__init__(ta_name, alert_name)
 
     def validate_params(self):
-
-        if not self.get_param("trigger"):
-            self.log_error('trigger is a mandatory parameter, but its value is None.')
-            return False
         return True
 
     def process_event(self, *args, **kwargs):

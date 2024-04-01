@@ -1,0 +1,160 @@
+<form version="1.1">
+  <label>1.🔧 Savedsearch monitoring configuration</label>
+  <description>This dashboard is used to settings up the savedsearch monitoring</description>
+  <init>
+    <eval token="last_refresh">now()</eval>
+    <set token="action_remove_instance">❌ Remove this instance</set>
+  </init>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="advanced">
+      <label>[Configuration] Advanced monitoring</label>
+      <choice value="0">No</choice>
+      <choice value="1">Yes</choice>
+      <default>0</default>
+    </input>
+    <input type="text" token="filter_app">
+      <label>[Filter] App</label>
+      <default>.*</default>
+    </input>
+    <input type="text" token="filter_savedsearch">
+      <label>[Filter] Savedsearch</label>
+      <default>.*</default>
+    </input>
+    <input type="radio" token="global_debug">
+      <label>Debug</label>
+      <choice value="0">No</choice>
+      <choice value="1">Yes</choice>
+      <default>0</default>
+      <change>
+        <condition value="0">
+          <unset token="show_debug"></unset>
+        </condition>
+        <condition value="1">
+          <set token="show_debug">1</set>
+        </condition>
+      </change>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Number of monitored savedsearches</title>
+      <single>
+        <search>
+          <progress>
+            <unset token="search_enrichment"></unset>
+          </progress>
+          <done>
+            <condition match="'result.count' &gt; 0">
+              <set token="search_enrichment">| lookup detection_backfill_savedsearch_monitoring app savedsearch as title OUTPUT enabled, advanced</set>
+            </condition>
+            <condition>
+              <set token="search_enrichment"></set>
+            </condition>
+          </done>
+          <query>| inputlookup detection_backfill_savedsearch_monitoring
+| eval last_refresh = "$last_refresh$"
+| stats count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>List of savedsearches</title>
+      <input type="dropdown" token="app_context">
+        <label>App context (REST API)</label>
+        <choice value="-">* Default</choice>
+        <default>-</default>
+        <fieldForLabel>title</fieldForLabel>
+        <fieldForValue>title</fieldForValue>
+        <search>
+          <query>| rest /services/apps/local
+| search disabled=0
+| table title</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+      </input>
+      <table>
+        <title>This is the current list of savedsearches for the given context. If you don't find your savedsearches, try to change the app context. You can click directly on the line of the savedsearch you want to monitor to enable (or disable it)</title>
+        <search>
+          <query>| rest /servicesNS/-/$app_context$/saved/searches splunk_server=local
+| rename eai:acl.app as app
+| table app, title, description
+| where match(app,"$filter_app$") AND match(title,"$filter_savedsearch$")
+$search_enrichment$
+| fillnull value="0" enabled
+| sort 0 -enabled app savedsearch 
+| eval enabled = if(enabled==1,if(advanced=1,"Yes: Advanced monitoring","Yes: Standard monitoring"),"No")
+| table app, title, description, enabled
+| rename app as App, title as "Savedsearch", description as "Description", enabled as "Enabled"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Enabled">
+          <colorPalette type="map">{"No":#D41F1F,"Yes: Standard monitoring":#55C169,"Yes: Advanced monitoring":#118832}</colorPalette>
+        </format>
+        <format type="color" field="App">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <drilldown>
+          <set token="switch_app">$row.App$</set>
+          <set token="switch_savedsearch">$row.Savedsearch$</set>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$show_debug$">
+      <title>[DEBUG] Switch a savedsearch monitoring configuration</title>
+      <table>
+        <title>This search is used to switch (0 or 1) a savedsearch monitoring</title>
+        <search>
+          <done>
+            <eval token="last_refresh">now()</eval>
+            <unset token="switch_app"></unset>
+            <unset token="switch_savedsearch"></unset>
+          </done>
+          <query>| inputlookup detection_backfill_savedsearch_monitoring
+| append [
+        | makeresults
+        | eval app="$switch_app$", savedsearch="$switch_savedsearch$", enabled=0, advanced=$advanced$
+        | table app, savedsearch, enabled, advanced]
+| dedup app, savedsearch
+| eval enabled = if(app=="$switch_app$" and savedsearch=="$switch_savedsearch$",1-enabled,enabled)
+| where enabled == 1
+| outputlookup detection_backfill_savedsearch_monitoring</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

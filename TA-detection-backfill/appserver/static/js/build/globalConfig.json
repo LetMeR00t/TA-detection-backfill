@@ -124,6 +124,45 @@
                             "defaultValue": "INFO"
                         }
                     ]
+                },
+                {
+                    "name": "additional_parameters",
+                    "title": "Add-on Settings",
+                    "entity": [
+                        {
+                            "field": "dispatch_ttl",
+                            "label": "Dispatch TTL for searches",
+                            "type": "text",
+                            "help": "Define after how much time the dispatched searches will expire in seconds. Default set to 24 hours.",
+                            "required": true,
+                            "defaultValue": "86400",
+                            "validators": [
+                                {
+                                    "type": "number",
+                                    "range": [
+                                        60,
+                                        31536000
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "field": "index_results",
+                            "label": "Index for results",
+                            "type": "text",
+                            "help": "Indicates the index used by the advanced monitoring to store the results and compare them (original and healthcheck job)",
+                            "required": true,
+                            "defaultValue": "main",
+                            "validators": [
+                                {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 8192,
+                                    "errorMsg": "Length should be between 1 and 8192"
+                                }
+                            ]
+                        }
+                    ]
                 }
             ]
         }

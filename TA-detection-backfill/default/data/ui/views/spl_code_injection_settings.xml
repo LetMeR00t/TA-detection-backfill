@@ -1,0 +1,171 @@
+<form version="1.1">
+  <label>SPL code injection settings</label>
+  <description>This dashboard is used to configure the code injection capâbilities for this application. SPL code injections are used to inject a macro within a savedsearch in order to add additional capabilities when running backfills.</description>
+  <init>
+    <eval token="last_refresh">now()</eval>
+    <set token="action_remove_spl_code_injection">❌ Remove this SPL code injection</set>
+  </init>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="global_action">
+      <label>Action</label>
+      <choice value="add">Add a new SPL code injection</choice>
+      <choice value="list">List SQL code injections</choice>
+      <choice value="remove">Remove an SPL code injection</choice>
+      <default>list</default>
+      <change>
+        <condition value="add">
+          <set token="show_action_add">1</set>
+          <unset token="add_name"></unset>
+          <unset token="form.add_name"></unset>
+          <unset token="add_macro"></unset>
+          <unset token="form.add_macro"></unset>
+          <unset token="add_position"></unset>
+          <unset token="form.add_position"></unset>
+          <eval token="last_refresh">now()</eval>
+        </condition>
+        <condition value="list">
+          <unset token="show_action_add"></unset>
+          <eval token="last_refresh">now()</eval>
+        </condition>
+        <condition value="remove">
+          <unset token="show_action_add"></unset>
+          <eval token="last_refresh">now()</eval>
+        </condition>
+      </change>
+    </input>
+    <input type="dropdown" token="add_macro" depends="$show_action_add$">
+      <label>Macro</label>
+      <fieldForLabel>owner</fieldForLabel>
+      <fieldForValue>title</fieldForValue>
+      <search>
+        <query>| rest /servicesNS/-/TA-detection-backfill/admin/macros count=0 splunk_server=local
+| rename eai:acl.app as app, eai:acl.owner as owner
+| eval owner = if(app=="TA-detection-backfill", "* ","")+app+"/"+title+" ("+owner+")"
+| table title, owner
+| sort 0 owner</query>
+        <earliest>@d</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
+    <input type="text" token="add_position" depends="$show_action_add$">
+      <label>Position</label>
+      <default>-1</default>
+    </input>
+    <input type="text" token="add_name" depends="$show_action_add$">
+      <label>Name</label>
+    </input>
+    <input type="radio" token="global_debug">
+      <label>Debug</label>
+      <choice value="0">No</choice>
+      <choice value="1">Yes</choice>
+      <default>0</default>
+      <change>
+        <condition value="0">
+          <unset token="show_debug"></unset>
+        </condition>
+        <condition value="1">
+          <set token="show_debug">1</set>
+        </condition>
+      </change>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>SPL code injections</title>
+      <table>
+        <title>This is the current list of SPL code injections configured</title>
+        <search>
+          <query>| inputlookup detection_backfill_spl_code_injections
+| eval last_refresh = "$last_refresh$", action=case("$global_action$"=="remove","$action_remove_spl_code_injection$",1==1,"-"), position = case(position==0,"At the beginning of the savedsearch",position==-1,"At the end of the savedsearch",1==1,"After the command #"+position)
+| table id, name, macro, position action
+| rename id as "ID", name as "Name", macro as "Macro", position as "Position", action as "Action"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Position">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <drilldown>
+          <condition match="$click.value2$ == $action_remove_spl_code_injection$">
+            <eval token="remove_spl_code_injection_id">$row.ID$</eval>
+          </condition>
+          <condition></condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$show_debug$">
+      <title>[DEBUG] Add a new SQL code injection</title>
+      <table>
+        <title>This search is used to add a new SPL code injection</title>
+        <search>
+          <done>
+            <eval token="last_refresh">now()</eval>
+            <unset token="add_name"></unset>
+            <unset token="form.add_name"></unset>
+            <unset token="add_macro"></unset>
+            <unset token="form.add_macro"></unset>
+            <unset token="add_position"></unset>
+            <unset token="form.add_position"></unset>
+          </done>
+          <query>| inputlookup detection_backfill_spl_code_injections
+| append [| makeresults
+         | eval name = "$add_name$", macro="$add_macro$", position="$add_position$", id=substr(sha1(_time+name+macro+position),0,8)
+         | table id, name, macro, position]
+| sort 0 name
+| outputlookup detection_backfill_spl_code_injections</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$show_debug$">
+      <title>[DEBUG] Remove an existing SPL code injection</title>
+      <table>
+        <title>This search is used to remove an existing SPL code injection</title>
+        <search>
+          <done>
+            <eval token="last_refresh">now()</eval>
+            <unset token="remove_spl_code_injection_id"></unset>
+          </done>
+          <query>| inputlookup detection_backfill_spl_code_injections
+| where id!="$remove_spl_code_injection_id$"
+| outputlookup detection_backfill_spl_code_injections</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

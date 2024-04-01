@@ -195,12 +195,23 @@
   <row>
     <panel>
       <title>[Audit logs] Modular alerts regarding Detection Backfill (Custom Alert Action)</title>
+      <input type="dropdown" token="filter_action_type">
+        <label>[Filter] Action type</label>
+        <choice value="*">Any</choice>
+        <choice value="Add a backfill to the backlog">Add a backfill to the backlog</choice>
+        <choice value="Add a healthcheck job to the backlog">Add a healthcheck job to the backlog</choice>
+        <choice value="Run the next backfill">Run the next backfill</choice>
+        <choice value="Run healthcheck on monitored savedsearches">Run healthcheck on monitored savedsearches</choice>
+        <choice value="Index results from SID">Index results from SID</choice>
+        <default>*</default>
+      </input>
       <table>
         <search>
           <query>(index=_* OR index=cim_*) sourcetype="modular_alerts:detection_backfill*"
 | rex field=_raw " (?&lt;type&gt;\w+) pid\=.*\| (?&lt;signature2&gt;.*(?:\[sid=)(?&lt;sid_log&gt;[^\]]+)(?:\])?(?:\[)(?&lt;order&gt;\d+)(?:\])?.*)?"
 | search type="$log_level$"
-| eval signature = coalesce(signature,signature2,_raw), sid = coalesce(sid,sid_log), action_type = case(match(sourcetype,"run_the_next_backfill"),"Run the next backfill",match(sourcetype,"add_a_backfill_to_the_backlog"),"Add a backfill to the backlog",1==1,"?")
+| eval signature = coalesce(signature,signature2,_raw), sid = coalesce(sid,sid_log), action_type = case(match(sourcetype,"run_the_next_backfill"),"Run the next backfill",match(sourcetype,"add_a_backfill_to_the_backlog"),"Add a backfill to the backlog",match(sourcetype,"run_healthcheck_on_savedsearches"),"Run healthcheck on monitored savedsearches",match(sourcetype,"index_results_from_sid"),"Index results from SID",match(sourcetype,"add_a_healthcheck_task_to_the_backlog"),"Add a healthcheck job to the backlog",1==1,"?")
+| search action_type="$filter_action_type$"
 | eval signature = replace(signature,"\[sid=[^\]]+\]","")
 | sort 0 _time order
 | delta _time as delta_time

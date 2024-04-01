@@ -1,0 +1,107 @@
+<form version="1.1">
+  <label>2.🔧 Manage the healthcheck backlog</label>
+  <description>This dashboard is used to manage the current healthcheck backlog</description>
+  <init>
+    <eval token="last_refresh">now()</eval>
+    <set token="action_remove_instance">❌ Remove this instance</set>
+  </init>
+  <fieldset submitButton="false">
+    <input type="text" token="filter_app">
+      <label>[Filter] App</label>
+      <default>.*</default>
+    </input>
+    <input type="text" token="filter_savedsearch">
+      <label>[Filter] Savedsearch</label>
+      <default>.*</default>
+    </input>
+    <input type="dropdown" token="global_action">
+      <label>Action</label>
+      <choice value="list">List tasks in the backlog</choice>
+      <choice value="remove">Remove a task from the backlog</choice>
+      <default>list</default>
+      <change>
+        <condition>
+          <eval token="last_refresh">now()</eval>
+        </condition>
+      </change>
+    </input>
+    <input type="radio" token="global_debug">
+      <label>Debug</label>
+      <choice value="0">No</choice>
+      <choice value="1">Yes</choice>
+      <default>0</default>
+      <change>
+        <condition value="0">
+          <unset token="show_debug"></unset>
+        </condition>
+        <condition value="1">
+          <set token="show_debug">1</set>
+        </condition>
+      </change>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>[Backlog] List of tasks</title>
+      <table>
+        <title>This is the current list of detection backfill already setup within the backlog to be processed</title>
+        <search>
+          <query>| inputlookup detection_backfill_healthcheck_backlog
+| eval hc_created_time = strftime(hc_created_time,"%Y-%m-%d %H:%M:%S %z"), orig_exec_time = strftime(orig_exec_time,"%Y-%m-%d %H:%M:%S %z"), orig_search_et = strftime(orig_search_et,"%Y-%m-%d %H:%M:%S %z"), orig_search_lt = strftime(orig_search_lt,"%Y-%m-%d %H:%M:%S %z"), last_refresh = "$last_refresh$", action=case("list"=="remove","❌ Remove this instance",1==1,"-")
+| where match(app,"$filter_app$") AND match(savedsearch_name,"$filter_savedsearch$")
+| table hc_uid, batch_name, batch_priority, hc_created_time, hc_created_author, orig_exec_time, orig_search_et, orig_search_lt, orig_scan_count, orig_event_count, orig_result_count
+| rename batch_name as "Name", batch_priority as "Priority", hc_created_author as "Batch created by", hc_created_time as "Batch created on", hc_uid as UID, orig_scan_count as "Original scan count", orig_event_count as "Original event count", orig_result_count as "Original result count", orig_exec_time as "Original execution time", orig_search_et as "Original earliest time", orig_search_lt as "Original latest time"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="Priority">
+          <colorPalette type="list">[#D41F1F,#D94E17,#CBA700,#1182F3]</colorPalette>
+          <scale type="threshold">1,2,3</scale>
+        </format>
+        <drilldown>
+          <condition match="$click.value2$ == $action_remove_instance$">
+            <eval token="remove_id">$row.bf_uid$</eval>
+          </condition>
+          <condition></condition>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$show_debug$">
+      <title>[DEBUG] Remove an existing task in the backlog</title>
+      <table>
+        <title>This search is used to remove an existing task from the backlog</title>
+        <search>
+          <done>
+            <eval token="last_refresh">now()</eval>
+            <unset token="remove_id"></unset>
+          </done>
+          <query>| inputlookup detection_backfill_healthcheck_backlog
+| where bf_uid!="$remove_id$"
+| outputlookup detection_backfill_healthcheck_backlog</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

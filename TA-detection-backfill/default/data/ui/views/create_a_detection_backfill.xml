@@ -1,5 +1,5 @@
 <form version="1.1">
-  <label>1.➕Create a detection backfill</label>
+  <label>1.➕Create a new batch</label>
   <description>⚠️ Disabled or not scheduled searches aren't considered during the evaluation🛑 In case of error, please check the issue on the "Audit logs" dashboard</description>
   <init>
     <unset token="execute_yes"></unset>
@@ -7,7 +7,7 @@
   <fieldset submitButton="false"></fieldset>
   <row>
     <panel id="panel_title1">
-      <title>1. Calculate all (re)dispatch times</title>
+      <title>1. Build your savedsearches to dispatch again</title>
       <input id="input_outage_period" type="time" token="outage_period">
         <label>Outage period (only static period)</label>
         <default>
@@ -62,6 +62,26 @@
         <choice value="3">Low (3)</choice>
         <choice value="4">Lowest (4)</choice>
       </input>
+      <input type="dropdown" token="spl_code_injection">
+        <label>SPL code injection</label>
+        <fieldForLabel>name</fieldForLabel>
+        <fieldForValue>id</fieldForValue>
+        <search>
+          <query>| inputlookup detection_backfill_spl_code_injections
+| eval name = "("+id+") "+name
+| table id, name</query>
+          <earliest>@d</earliest>
+          <latest>now</latest>
+        </search>
+        <choice value="0">Aucune</choice>
+        <default>0</default>
+      </input>
+      <input type="dropdown" token="trigger">
+        <label>Trigger (execute alert actions)</label>
+        <choice value="0">No</choice>
+        <choice value="1">Yes</choice>
+        <default>0</default>
+      </input>
       <input type="radio" token="execute">
         <label>Execute (add to the backlog)</label>
         <choice value="0">No</choice>
@@ -77,12 +97,13 @@
         </change>
       </input>
       <table>
-        <title>Once the below search is run, it will output the same events representing which tasks were added into into the backlog</title>
+        <title>Once the below search is run, it will output the same events representing which correspond to the tasks that were added into the backlog</title>
         <search>
           <query>| loadjob $job_1$
 | eval execute = "$execute_yes$"
 | table app, savedsearch, dispatch_time
-| sendalert detection_backfill_add_a_backfill_to_the_backlog param.batch_name="$batch_name$" param.batch_priority="$batch_priority$"
+| sendalert detection_backfill_add_a_backfill_to_the_backlog param.batch_name="$batch_name$" param.batch_priority="$batch_priority$" param.spl_code_injection="$spl_code_injection$" param.trigger="$trigger$"
+| eval dispatch_time = strftime(dispatch_time,"%c")
 | rename app as "App", savedsearch as "Savedsearch", dispatch_time as "Dispatch time"</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
