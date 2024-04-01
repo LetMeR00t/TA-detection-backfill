@@ -8,7 +8,7 @@
   </fieldset>
   <row>
     <panel>
-      <title>SID: Original job $test$</title>
+      <title>SID: Original job</title>
       <single>
         <search>
           <query>| makeresults
@@ -59,51 +59,72 @@
   </row>
   <row>
     <panel>
-      <title>Original job results details executed at '$time_origin_readable$':</title>
+      <title>🔍 Original job results details executed at '$time_origin_readable$':</title>
       <table>
+        <title>1️⃣ This is the results for the original job</title>
         <search>
           <query>| loadjob $sid_results$
 | search sid="$sid_origin$"
 | table result.*
-| rename result.* as *
-| transpose column_name="results"
-| rename "row 1" as row
-| eval results = results+" = "+row
-| table results
-| where isnotnull(results)
-| rename results as "Results (&lt;field&gt; = &lt;value)"</query>
+| rename result.* as *</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
         <option name="drilldown">none</option>
-        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">true</option>
       </table>
     </panel>
     <panel>
-      <title>Healthcheck job results details executed at '$time_healthcheck_readable$':</title>
+      <title>🔍 Healthcheck job results details executed at '$time_healthcheck_readable$':</title>
       <table>
+        <title>2️⃣ This is the results for the healthcheck job</title>
         <search>
           <query>| loadjob $sid_results$
 | search sid="$sid_healthcheck$"
 | table result.*
-| rename result.* as *
-| transpose column_name="results"
-| rename "row 1" as row
-| eval results = results+" = "+row
-| table results
-| where isnotnull(results)
-| rename results as "Results (&lt;field&gt; = &lt;value)"</query>
+| rename result.* as *</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
         <option name="drilldown">none</option>
+        <option name="rowNumbers">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>🔥 Results different between the two jobs</title>
+      <table>
+        <title>This indicates the results that aren't present in both jobs but only in one of them</title>
+        <search>
+          <query>| loadjob $sid_results$
+| eventstats count as count_result_sha256 by result_sha256
+| where count_result_sha256!=2
+| fields - result_sha256 count_result_sha256
+| table sid *
+| rename result.* as *</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
         <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="sid">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
       </table>
     </panel>
   </row>
   <row depends="$debug$">
     <panel>
-      <title>[Debug] Get SIDs from UID</title>
+      <title>[Debug] Get SIDs from UIDhttps://splunk.5mbeq1e.home:8000/fr-FR/app/TA-detection-backfill/4__results_analysis_advanced_monitoring/edit?form.uid=f46737d42a27100e#</title>
       <table>
         <search>
           <done>
