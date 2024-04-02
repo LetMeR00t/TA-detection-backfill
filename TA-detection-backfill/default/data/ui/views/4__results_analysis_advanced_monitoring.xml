@@ -46,8 +46,8 @@
           <query>| loadjob $sid_results$
 | eventstats values(result_sha256) as results_sha256 by sid
 | eval signature = sha256(mvjoin(results_sha256,","))
-| stats dc(signature) as check
-| eval text = case(check==0,"Advanced monitoring is not enabled or not yet executed",check==1,"✅ Results are the same",1==1,"❌ Results are different") 
+| stats dc(signature) as dc_signature, dc(sid) as dc_sid
+| eval text = case(dc_sid==1,"Not all results data are available for comparison",dc_signature==0,"Advanced monitoring is not enabled or not yet executed",dc_signature==1,"✅ Results are the same",1==1,"❌ Results are different") 
 | table text</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
