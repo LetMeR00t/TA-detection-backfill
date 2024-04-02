@@ -16,10 +16,6 @@ class AlertActionWorkerdetection_backfill_run_healthcheck_on_savedsearches(Modul
 
     def validate_params(self):
 
-        if not self.get_param("dispatch_as"):
-            self.log_error('dispatch_as is a mandatory parameter, but its value is None.')
-            return False
-
         return True
 
     def process_event(self, *args, **kwargs):
