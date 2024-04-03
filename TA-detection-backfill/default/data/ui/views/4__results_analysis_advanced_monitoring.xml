@@ -137,7 +137,7 @@
           </done>
           <query>(sourcetype=detection_backfill:events type=healthcheck:job_dispatched uid=$uid$)
 OR 
-(index=_audit sourcetype=audittrail action=search info!="granted" [search sourcetype=detection_backfill:events type=healthcheck:job_dispatched uid=$uid$ | rename "jobs.healthcheck.sid" as search_id | eval search_id = "'"+search_id+"'" | table search_id])
+(index=_audit sourcetype=audittrail `filter_audittrail_logs` action=search info!="granted" [search sourcetype=detection_backfill:events type=healthcheck:job_dispatched uid=$uid$ | rename "jobs.healthcheck.sid" as search_id | eval search_id = "'"+search_id+"'" | table search_id])
 | eventstats max(_time) as time_healthcheck
 | search sourcetype="detection_backfill:events"
 | rename "jobs.origin.sid" as sid_origin, "jobs.healthcheck.sid" as sid_healthcheck, "jobs.origin.timestamp" as time_origin, _time as time_healthcheck
