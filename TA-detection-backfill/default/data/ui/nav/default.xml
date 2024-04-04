@@ -9,7 +9,7 @@
     <view name="overview_healthcheck"/>
     <view name="savedsearch_monitoring_configuration" />
     <view name="manage_the_healthcheck_backlog" />
-    <view name="healthcheck_monitoring" />
+    <view name="3__healthcheck_monitoring" />
   </collection>
   <view name="audit_logs"/>
   <collection label="Splunk App / Settings">

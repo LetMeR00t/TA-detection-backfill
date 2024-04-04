@@ -1,0 +1,299 @@
+<form version="1.1">
+  <label>3. 📊 Healthcheck monitoring</label>
+  <description>This dashboard is used to track the healthcheck jobs results performed on the monitored savedsearch</description>
+  <fieldset submitButton="false">
+    <input type="time" token="time">
+      <label>Time</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="text" token="filter_app">
+      <label>[Filter] App</label>
+      <default>.*</default>
+    </input>
+    <input type="text" token="filter_savedsearch">
+      <label>[Filter] Savedsearch</label>
+      <default>.*</default>
+    </input>
+    <input type="multiselect" token="filter_status">
+      <label>[Filter] Status</label>
+      <choice value="*">Any</choice>
+      <choice value="No healthcheck job found">No healthcheck job found</choice>
+      <choice value="Healthcheck job in progress">Healthcheck job in progress</choice>
+      <choice value="Found healthcheck job result">Found healthcheck job result</choice>
+      <default>*</default>
+    </input>
+    <input type="radio" token="show_debug">
+      <label>Debug</label>
+      <choice value="0">No</choice>
+      <choice value="1">Yes</choice>
+      <change>
+        <condition value="1">
+          <set token="debug">1</set>
+        </condition>
+        <condition>
+          <unset token="debug"></unset>
+        </condition>
+      </change>
+      <default>0</default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Healthcheck status on the given period</title>
+      <chart>
+        <title>This is showing a statistic about all the identified jobs and their relative (or not) healthcheck job status</title>
+        <search>
+          <query>| loadjob $sid_ds_healthcheck_results$
+| stats count by status</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="charting.fieldColors">{"No healthcheck job found": "#F4BAA9","Found healthcheck job result": "#A1D59C"}</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Scan count - Analysis results</title>
+      <chart>
+        <title>This is showing a statistic on the healthcheck result regarding the number of events that were scanned</title>
+        <search>
+          <query>| loadjob $sid_ds_healthcheck_results$
+| eval ok = "✅", nok = "❌", warning = "⚠️", question = "❔"
+| eval scan_count = case(match(scan_count,"ok$"),"Success ok",match(scan_count,"warning"),"Warning warning",match(scan_count,"question"),"Healthcheck job not executed question",1==1,scan_count)
+| eval scan_count = replace(scan_count,"ok",ok), scan_count = replace(scan_count,"warning",warning), scan_count = replace(scan_count,"question",question)
+| fields - ok nok warning question
+| stats count by scan_count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="charting.fieldColors">{"Success ✅": "#A1D59C","Warning ⚠️": "#FFD442","Healthcheck job not executed ❔": "#F4BAA9"}</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Event count - Analysis results</title>
+      <chart>
+        <title>This is showing a statistic on the healthcheck result regarding the number of events that matched the search query and retrieved from the indexers</title>
+        <search>
+          <query>| loadjob $sid_ds_healthcheck_results$
+| eval ok = "✅", nok = "❌", warning = "⚠️", question = "❔"
+| eval event_count = case(match(event_count,"ok$"),"Success ok",match(event_count,"warning"),"Warning warning",match(event_count,"question"),"Healthcheck job not executed question",1==1,event_count)
+| eval event_count = replace(event_count,"ok",ok), event_count = replace(event_count,"warning",warning), event_count = replace(event_count,"question",question)
+| fields - ok nok warning question
+| stats count by event_count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Success ✅": "#A1D59C","Warning ⚠️": "#FFD442","Healthcheck job not executed ❔": "#F4BAA9"}</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Result count - Analysis results</title>
+      <chart>
+        <title>This is showing a statistic on the healthcheck result regarding the number of results returned by the savedsearch</title>
+        <search>
+          <query>| loadjob $sid_ds_healthcheck_results$
+| eval result_count = case(match(result_count,"nok$"),"nok",match(result_count,"ok"),"ok",match(result_count,"question"),"question",1==1,result_count)
+| stats count(eval(result_count=="ok")) as "Success", count(eval(result_count=="nok")) as "Failed", count(eval(result_count=="question")) as "Healthcheck job not executed", by savedsearch
+| where savedsearch!=""</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.drilldown">none</option>
+        <option name="height">598</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="charting.fieldColors">{"Success": "#A1D59C","Failed": "#FF5E5E","Healthcheck job not executed": "EEE8CE"
+        }</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Result hash content - Analysis results</title>
+      <chart>
+        <title>This is showing a statistic on the healthcheck result regarding the hashes calculated from the results content to evaluate if the results have been modified</title>
+        <search>
+          <query>| loadjob $sid_ds_healthcheck_results$
+| eval results_hash = case(match(results_hash,"nok"),"nok",match(results_hash,"ok"),"ok",match(results_hash,"question"),"question",1==1,results_hash)
+| stats count(eval(results_hash=="ok")) as "Success", count(eval(results_hash=="nok")) as "Failed", count(eval(results_hash=="question")) as "Healthcheck job not executed", by savedsearch
+| where savedsearch!=""</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.stackMode">stacked100</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.fieldColors">{"Success": "#A1D59C","Failed": "#FF5E5E","Healthcheck job not executed": "EEE8CE"
+        }</option>
+        <option name="height">598</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Earliest job time</title>
+      <single>
+        <title>This is indicating the earliest job time found in the checked jobs for the given period</title>
+        <search>
+          <query>| loadjob $sid_ds_healthcheck_min_max_time$
+| table earliest_time_readable</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">50</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Latest job time</title>
+      <single>
+        <title>This is indicating the latest job time found in the checked jobs for the given period</title>
+        <search>
+          <query>| loadjob $sid_ds_healthcheck_min_max_time$
+| table latest_time_readable</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="height">50</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Detailed executions</title>
+      <table>
+        <search>
+          <query>| loadjob $sid_ds_healthcheck_results$
+| eval ok = "✅", nok = "❌", warning = "⚠️", question = "❔"
+| eval scan_count = replace(scan_count,"ok",ok), scan_count = replace(scan_count,"warning",warning), scan_count = replace(scan_count,"question",question), event_count = replace(event_count,"ok",ok), event_count = replace(event_count,"warning",warning), event_count = replace(event_count,"question",question), result_count = replace(result_count,"nok",nok), result_count = replace(result_count,"ok",ok), result_count = replace(result_count,"question",question), results_hash = replace(results_hash,"nok",nok), results_hash = replace(results_hash,"ok",ok), results_hash = replace(results_hash,"question",question)
+| fields - ok nok warning question _time
+| eval time_origin = strftime(time_origin,"%Y-%m-%d %H:%M:%S (%z)")
+| rename time_origin as "Original job time", app as App, savedsearch as Savedsearch, sids as Information, status as Status, scan_count as "Scan count (Original vs Healthcheck)", event_count as "Event count (Original vs Healthcheck)", result_count as "Result count (Original vs Healthcheck)", results_hash as "Result content hash (Original vs Healthcheck)", uid as UID</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">50</option>
+        <option name="drilldown">row</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="Status">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <drilldown>
+          <link target="_blank">/app/TA-detection-backfill/4__results_analysis_advanced_monitoring?form.uid=$row.UID$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row depends="$debug$">
+    <panel>
+      <title>[Debug] ds_healthcheck_results</title>
+      <table>
+        <search>
+          <done>
+            <set token="sid_ds_healthcheck_results">$job.sid$</set>
+          </done>
+          <query>``` Search 1: Get all jobs ```
+(index=_audit sourcetype=audittrail `filter_audittrail_logs` action=search info!="granted")
+OR
+``` Search 2: Get all logs generated by the Detection Backfill app which help us to link an original job to its healthcheck one ```
+(`get_detection_backfill_events` type=healthcheck:job_dispatched latest=now)
+OR
+``` Search 3: Get all logs generated by the Detection Backfill app which help us to get the results content```
+(`get_detection_backfill_events` type=healthcheck:job_result earliest="$hash_earliest_event_time$" latest="$hash_latest_event_time$")
+``` Identify all jobs ran by a savedsearch which is monitored ```
+| lookup detection_backfill_savedsearch_monitoring app savedsearch as savedsearch_name OUTPUT enabled as monitored_savedsearch, advanced as monitored_savedsearch_advanced
+``` Remove unwanted events ```
+| search monitored_savedsearch=1 OR type IN ("healthcheck:job_dispatched","healthcheck:job_result")
+| rename "jobs.healthcheck.sid" as sid_healthcheck, "jobs.origin.sid" as sid_origin, "jobs.origin.scan_count" as origin_scan_count, "jobs.origin.event_count" as origin_event_count, "jobs.origin.result_count" as origin_result_count, "jobs.origin.timestamp" as time_origin
+| eval time_healthcheck = if(isnotnull(sid_healthcheck),_time,null())
+| eval search_id = if(isnotnull(search_id),replace(search_id,"'",""),null()), search_id1 = coalesce(search_id, sid_healthcheck,sid), search_id2 = coalesce(search_id, sid_origin,sid), signature=sha1(sid_origin+sid_healthcheck)
+| eventstats values(signature) as signature, values(sid_healthcheck) as job_healthcheck, values(result_sha256) as results_sha256_healthcheck by search_id1
+| eventstats values(signature) as signature, values(sid_origin) as job_origin, values(result_sha256) as results_sha256_origin  by search_id2
+| eval signature = if(isnull(signature),search_id,signature), time_origin = coalesce(time_origin,_time), savedsearch = coalesce(savedsearch, savedsearch_name)
+| eval results_sha256_origin = if(isnull(job_healthcheck),sha256(mvjoin(results_sha256_origin,",")),null()), results_sha256_healthcheck = if(search_id1!=search_id2,sha256(mvjoin(results_sha256_healthcheck,",")),null())
+| eval origin_scan_count = if(isnotnull(job_origin) AND isnotnull(job_healthcheck),coalesce(scan_count, origin_scan_count),null()), origin_event_count = if(isnotnull(job_origin) AND isnotnull(job_healthcheck),coalesce(event_count, origin_event_count),null()), origin_result_count = if(isnotnull(job_origin) AND isnotnull(job_healthcheck),coalesce(result_count, origin_result_count),null()), new_scan_count = if(isnotnull(job_healthcheck),scan_count,null()), new_event_count = if(isnotnull(job_healthcheck),event_count,null()), new_result_count = if(isnotnull(job_healthcheck),result_count,null())
+| stats values(uid) as uid, values(sourcetype) as sourcetypes, values(time_healthcheck) as time_healthcheck, min(time_origin) as time_origin, values(search_id) as search_id, values(sid_origin) as sid_origin, values(app) as app, values(savedsearch) as savedsearch, values(origin_scan_count) as origin_scan_count, values(origin_event_count) as origin_event_count, values(origin_result_count) as origin_result_count, values(sid_healthcheck) as sid_healthcheck, values(new_scan_count) as new_scan_count, values(new_event_count) as new_event_count, values(new_result_count) as new_result_count, values(monitored_savedsearch) as monitored_savedsearch, values(monitored_savedsearch_advanced) as monitored_savedsearch_advanced, values(results_sha256_origin) as results_sha256_origin, values(results_sha256_healthcheck) as results_sha256_healthcheck by signature
+| where match(app,"$filter_app$") AND match(savedsearch,"$filter_savedsearch$")
+| eval _time = coalesce(time_healthcheck, time_origin), delta = time_healthcheck-time_origin,
+       delta_readable = if(delta&gt;3600,tostring(round(delta/3600))+"h ","")+tostring(round((delta%3600)/60))+"min",
+       sids = if(isnotnull(sid_healthcheck),mvappend("Original job: "+if(len(sid_origin)&gt;25,substr(sid_origin,0,10)+"(...)"+substr(sid_origin,len(sid_origin)-15),sid_origin),"Healthcheck job: "+if(len(sid_healthcheck)&gt;25,substr(sid_healthcheck,0,10)+"(...)"+substr(sid_healthcheck,len(sid_healthcheck)-15),sid_healthcheck),"Healthcheck performed after "+delta_readable),"Original job: "+if(len(search_id)&gt;25,substr(search_id,0,10)+"(...)"+substr(search_id,len(search_id)-15),search_id)),
+       scan_count = case(isnotnull(new_scan_count),origin_scan_count+" vs "+new_scan_count,1==1,origin_scan_count+" vs ?")+": "+case(isnull(new_scan_count),"question",origin_scan_count!=new_scan_count,"warning",1==1,"ok"),
+       event_count = case(isnotnull(new_event_count),origin_event_count+" vs "+new_event_count,1==1,origin_event_count+" vs ?")+": "+case(isnull(new_event_count),"question",origin_event_count!=new_event_count,"warning",1==1,"ok"),
+       result_count = case(isnotnull(new_result_count),origin_result_count+" vs "+new_result_count,1==1,origin_result_count+" vs ?")+": "+case(isnull(new_result_count),"question",origin_result_count!=new_result_count,"nok",1==1,"ok"),
+       results_hash = case(monitored_savedsearch_advanced==0,"(Advanced monitoring disabled)",new_scan_count==0,"No event scanned",isnotnull(results_sha256_origin) AND isnotnull(results_sha256_healthcheck),substr(results_sha256_origin,0,8)+"(...)"+" vs "+substr(results_sha256_healthcheck,0,8)+"(...)"+": "+case(results_sha256_origin!=results_sha256_healthcheck,"nok",1==1,"ok"),isnull(results_sha256_origin),"All results data aren't available (not yet executed or out of timerange: original job results are missing)",isnull(results_sha256_healthcheck),"All results data aren't available (not yet executed or out of timerange: healthcheck job results are missing)",1==1,"Unknown status for results hashes"),
+       status = case(isnotnull(sid_healthcheck) and isnotnull(scan_count),"Found healthcheck job result",isnotnull(sid_healthcheck),"Healthcheck job in progress",1==1,"No healthcheck job found")
+| where (mvcount(sids)&gt;1 AND isnotnull(scan_count)) OR monitored_savedsearch==1 OR status=="Healthcheck job information incomplete (selected timerange isn't sufficient)"
+| search status IN ($filter_status$) 
+| table _time, uid, time_origin, app, savedsearch, sids, status, scan_count, event_count, result_count, results_hash
+| sort 0 -time_origin</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row depends="$debug$">
+    <panel>
+      <title>[Debug] ds_healthcheck_results_hash_time</title>
+      <table>
+        <search>
+          <done>
+            <set token="hash_earliest_event_time">$result.earliest_event_time$</set>
+            <set token="hash_latest_event_time">$result.latest_event_time$</set>
+          </done>
+          <query>(`get_detection_backfill_events` type=healthcheck:job_dispatched)
+| rename "jobs.origin.timestamp" as orig_time
+| stats min(orig_time) as earliest_event_time, max(_time) as latest_event_time
+``` We consider the earliest event to be the first earliest event in the original jobs (orig_time) and the latest event to be the latest healthcheck job time with a job not exceeded 6 hours to be run completely ```
+| eval latest_event_time = relative_time(latest_event_time,"+6h")</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row depends="$debug$">
+    <panel>
+      <title>[Debug] ds_healthcheck_min_max_time</title>
+      <table>
+        <search>
+          <done>
+            <set token="sid_ds_healthcheck_min_max_time">$job.sid$</set>
+          </done>
+          <query>| loadjob $sid_ds_healthcheck_results$
+| stats min(_time) as earliest_time, max(_time) as latest_time
+| eval earliest_time_readable = strftime(earliest_time,"%Y-%m-%d at %H:%M:%S"), latest_time_readable = strftime(latest_time,"%Y-%m-%d at %H:%M:%S")</query>
+          <earliest>$time.earliest$</earliest>
+          <latest>$time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>

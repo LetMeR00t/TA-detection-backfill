@@ -117,7 +117,7 @@ def process_event(helper, *args, **kwargs):
             for result in rr:
                 if isinstance(result, results.Message):
                     # Diagnostic messages may be returned in the results
-                    logger_file.warning("050",'%s: %s' % (result.type, result.message))
+                    logger_file.warn("050",'%s: %s' % (result.type, result.message))
                 elif isinstance(result, dict):
                     # Normal events are returned as dicts
                     result_formatted = {

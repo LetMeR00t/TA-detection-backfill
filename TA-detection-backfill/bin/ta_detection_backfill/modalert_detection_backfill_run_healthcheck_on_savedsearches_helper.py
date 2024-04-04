@@ -63,9 +63,6 @@ def process_event(helper, *args, **kwargs):
     # Default app is the current one
     app = "TA-detection-backfill"
 
-    # Get some parameters
-    dispatch_as = helper.get_param("dispatch_as")
-
     # Try to connect to the Splunk API for the Detection Backfill app
     logger_file.debug("001","Connecting to Splunk API with the app context set to {app}...".format(app=app))
     try:
@@ -154,28 +151,13 @@ def process_event(helper, *args, **kwargs):
             dispatch_params = None
             job = None
 
-            # Dispatch the search depend on the way selected
-            if dispatch_as == "adhoc":
+            dispatch_params = {"dispatch.ttl": configuration.additional_parameters["dispatch_ttl"], "dispatch.earliest_time": dispatch_earliest, "dispatch.latest_time": dispatch_latest, "force_dispatch": True, "trigger_actions": False}
 
-                dispatch_params = {"now": timestamp_origin, "earliest_time": dispatch_earliest, "latest_time": dispatch_latest}
-
-                try:
-                    job = spl.jobs.create(query=savedsearch_search, **dispatch_params)
-                except Exception as e:
-                    logger_file.error("020","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information. {e}".format(e=e))
-
-            elif dispatch_as == "savedsearch":
-
-                dispatch_params = {"dispatch.ttl": configuration.additional_parameters["dispatch_ttl"], "dispatch.earliest_time": dispatch_earliest, "dispatch.latest_time": dispatch_latest, "force_dispatch": True, "trigger_actions": False}
-
-                try:
-                    job = savedsearch.dispatch(**dispatch_params)
-                except Exception as e:
-                    logger_file.error("021","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information")
-                    sys.exit(40)
-
-            else:
-                logger_file.error("022","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched as the dispatch method isn't known. Got {dispatch_as} when available values are 'adhoc' or 'savedsearch'".format(dispatch_as=dispatch_as))
+            try:
+                job = savedsearch.dispatch(**dispatch_params)
+            except Exception as e:
+                logger_file.error("021","The savedsearch '"+app+"/"+savedsearch["name"]+"' can't be dispatched. Make sure your savedsearch is enabled or check in the splunkd.log for more information")
+                sys.exit(40)
 
             logger_file.info("040","Healthcheck job '{uid}' for original SID {sid_origin} for the savedsearch '{app}/{savedsearch}' was dispatched. SID of the healthcheck job is '{job_sid}'. First job was run at '{time}' ({time_readable}) with an original scan count was '{scan_count}', event count was '{event_count}' and result count was '{result_count}'".format(uid=hc_uid,sid_origin=sid_origin,app=app,savedsearch=savedsearch_name,job_sid=job.sid,time=timestamp_origin,time_readable=timestamp_origin_readeable,scan_count=scan_count_origin,event_count=event_count_origin,result_count=result_count_origin))
 
