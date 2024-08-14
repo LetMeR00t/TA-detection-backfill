@@ -100,7 +100,7 @@ def process_event(helper, *args, **kwargs):
         app = task["app"]
         savedsearch_name = task["savedsearch"]
         spl_code_injection_id = task["bf_spl_code_injection_id"]
-        trigger = True if "trigger" in task and task["trigger"] == "1" else False 
+        trigger = True if "bf_trigger" in task and task["bf_trigger"] == "1" else False 
 
         logger_file.info("006","Process this task: {0}, with trigger set to: {1}".format(str(task),trigger))
 
