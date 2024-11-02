@@ -51,11 +51,15 @@ if __name__ == '__main__':
         outage_period_earliest = RelativeTime(pattern=result["outage_period_earliest"], time=now.timestamp(), logger=logger).datetime_calculated.timestamp()
         outage_period_latest = RelativeTime(pattern=result["outage_period_latest"], time=now.timestamp(), logger=logger).datetime_calculated.timestamp()
         savedsearches_regex = result["savedsearches_regex"]
+        apps_regex = result["apps_regex"]
+        cron_regex = result["cron_regex"]
 
-        logger_file.info("008","'{0}' ran the script with the following inputs: outage_period_earliest='{1}', outage_period_latest='{2}', savedsearches_regex='{3}'".format(settings["owner"],outage_period_earliest,outage_period_latest,savedsearches_regex))
+        logger_file.info("008","'{0}' ran the script with the following inputs: outage_period_earliest='{1}', outage_period_latest='{2}', apps_regex='{3}', savedsearches_regex='{4}', cron_regex='{5}'".format(settings["owner"],outage_period_earliest,outage_period_latest,apps_regex,savedsearches_regex,cron_regex))
         
-        # Compile the regex
+        # Compile the regex(s)
+        filter_apps_regex = re.compile(apps_regex)
         filter_savedsearches_regex = re.compile(savedsearches_regex)
+        filter_cron_regex = re.compile(cron_regex)
         filter_timestamp = re.compile("^\d+(?:\.\d*)?$")
 
         # Find all savedsearches
@@ -63,10 +67,10 @@ if __name__ == '__main__':
         apps = {}
         savedsearches = []
         for search in spl.saved_searches:
-            logger_file.debug("011","Run regexp '{0}' on '{1}/{2}'".format(savedsearches_regex, search.access["app"], search.name))
+            logger_file.debug("011","Run app regexp '{0}' with savedsearch regexp '{1}' and cron regexp '{2}' on '{3}/{4}'".format(apps_regex, savedsearches_regex, cron_regex, search.access["app"], search.name))
             # Does not rerun disabled searches
-            if filter_savedsearches_regex.search(search.name) and search.is_scheduled=="1" and search.disabled=="0":
-                logger_file.info("015","Regexp '{0}' is matching '{1}/{2}'".format(savedsearches_regex, search.access["app"], search.name))
+            if filter_apps_regex.search(search.access["app"]) and filter_savedsearches_regex.search(search.name) and filter_cron_regex.search(str(search['content']['cron_schedule'])) and search.is_scheduled=="1" and search.disabled=="0":
+                logger_file.info("015","App regexp '{0}' with savedsearch regexp '{1}' and cron regexp '{2}' is matching '{3}/{4}'".format(apps_regex, savedsearches_regex, cron_regex, search.access["app"], search.name))
                 if search.access["app"] in apps:
                     apps[search.access["app"]] += 1
                 else:
@@ -74,7 +78,7 @@ if __name__ == '__main__':
                 savedsearches.append(search)
             elif filter_savedsearches_regex.search(search.name):
                 # Match but ignored as not scheduled or disabled
-                logger_file.info("016","Regexp '{0}' is matching '{1}/{2}' BUT this was ignored as it's either not scheduled or disabled.".format(savedsearches_regex, search.access["app"], search.name))
+                logger_file.info("016","App regexp '{0}' with savedsearch regexp '{1}' and cron regexp '{2}' is matching '{3}/{4}' BUT this was ignored as it's either not scheduled or disabled.".format(apps_regex, savedsearches_regex, cron_regex, search.access["app"], search.name))
         logger_file.info("019","End of all savedsearches analysis, results found ("+str(len(savedsearches))+") by app: "+str(apps))
 
         # Process each savedsearch identified on the outage period

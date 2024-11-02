@@ -15,8 +15,29 @@
           <latest>now</latest>
         </default>
       </input>
+      <input id="input_apps_regex" type="text" token="apps_regex">
+        <label>Apps (regex)</label>
+        <default>.*</default>
+      </input>
       <input id="input_savedsearches_regex" type="text" token="savedsearches_regex">
-        <label>Savedsearches regex pattern</label>
+        <label>Savedsearches (regex)</label>
+      </input>
+      <input id="input_cron_regex" type="text" token="cron_regex">
+        <label>Cron (regex)</label>
+      </input>
+      <input type="radio" token="analyze_execute">
+        <label>Execute (search for apps/savedsearches matching)</label>
+        <choice value="0">No</choice>
+        <choice value="1">Yes</choice>
+        <default>0</default>
+        <change>
+          <condition value="1">
+            <set token="analyze_execute_yes">1</set>
+          </condition>
+          <condition>
+            <unset token="analyze_execute_yes"></unset>
+          </condition>
+        </change>
       </input>
       <table>
         <title>Select your outage period (the period during which the detections did not work) and identify the pattern of saved searches you wish to perform during this break period. This panel will generate all the periods on which the savedsearches need to be run indicated with the "Dispatch Time" field and a "Comment" about its value.</title>
@@ -25,7 +46,7 @@
             <set token="job_1">$job.sid$</set>
           </done>
           <query>| makeresults
-| eval outage_period_earliest = "$outage_period.earliest$", outage_period_latest = "$outage_period.latest$", savedsearches_regex = "$savedsearches_regex$"
+| eval outage_period_earliest = "$outage_period.earliest$", outage_period_latest = "$outage_period.latest$", apps_regex = "$apps_regex$", savedsearches_regex = "$savedsearches_regex$", cron_regex = "$cron_regex$", analyze_execute_yes = "$analyze_execute_yes$"
 | script backfill_detection_evaluate_savedsearches_to_rerun
 | eval app_formatted = app, savedsearch_formatted = savedsearch, et = if(match(et,"^\d+$$"),strftime(et,"(static) %Y-%m-%d %H:%M:%S %z"),et), lt = if(match(lt,"^\d+$$"),strftime(lt,"(static) %Y-%m-%d %H:%M:%S %z"),lt), dispatch_time_formatted = strftime(dispatch_time,"%Y-%m-%d %H:%M:%S %z")
 | rename app_formatted as "App", savedsearch_formatted as "Savedsearch (Ss)", et as "Ss: earliest", lt as "Ss: latest", cron as "Ss: cron", dispatch_time_formatted as "Dispatch time", comment as Comment</query>
@@ -37,6 +58,7 @@
         <option name="dataOverlayMode">none</option>
         <option name="drilldown">none</option>
         <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
         <option name="rowNumbers">false</option>
         <option name="totalsRow">false</option>
         <option name="wrap">true</option>
@@ -148,6 +170,14 @@
           }
 
           #input_savedsearches_regex label {
+            background-color: #BFE1F6;
+            text-align: center !important;
+          }
+         #input_apps_regex label {
+            background-color: #BFE1F6;
+            text-align: center !important;
+          }
+         #input_cron_regex label {
             background-color: #BFE1F6;
             text-align: center !important;
           }
