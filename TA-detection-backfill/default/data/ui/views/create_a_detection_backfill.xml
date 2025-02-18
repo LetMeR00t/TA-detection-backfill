@@ -24,6 +24,7 @@
       </input>
       <input id="input_cron_regex" type="text" token="cron_regex">
         <label>Cron (regex)</label>
+        <default>.*</default>
       </input>
       <input type="radio" token="analyze_execute">
         <label>Execute (search for apps/savedsearches matching)</label>
