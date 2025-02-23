@@ -21,6 +21,10 @@ param._cam = <json> Active response parameters.
 python.version = python3
 param._cam = <json> Active response parameters.
 
+[detection_backfill_log_the_results_of_a_healthcheck_task]
+python.version = python3
+param._cam = <json> Active response parameters.
+
 [detection_backfill_add_a_healthcheck_task_to_the_backlog]
 python.version = python3
 param._cam = <json> Active response parameters.
