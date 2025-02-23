@@ -3,6 +3,7 @@
 # Author: Alexandre Demeyer <letmer00t@gmail.com>
 # Inspired by: Donald Murchison
 
+import uuid
 import globals
 import sys
 import datetime
@@ -95,7 +96,7 @@ def process_event(helper, *args, **kwargs):
     # Initialize batch
     batch_name = helper.get_param("batch_name")
     batch_priority = int(helper.get_param("batch_priority"))
-    bf_batch_id = hashlib.sha256((batch_name+str(random.randrange(0,1000000000))).encode('utf-8')).hexdigest()[:16]
+    bf_batch_id = str(uuid.uuid4())
 
     tasks = []
 
@@ -106,7 +107,7 @@ def process_event(helper, *args, **kwargs):
         now = datetime.datetime.now().timestamp()
 
         # Initialize backfill
-        bf_uid = hashlib.sha256((bf_batch_id+str(now)+str(random.randrange(0,1000000000))).encode('utf-8')).hexdigest()[:16]
+        bf_uid = str(uuid.uuid4())
 
         # Initialize task
         task = {"bf_uid": bf_uid, "batch_name": batch_name, "batch_priority": batch_priority, "bf_batch_id": bf_batch_id, "bf_spl_code_injection_id": spl_code_injection_id, "bf_trigger": trigger, "bf_created_time": now, "bf_created_author": helper.settings["owner"]}

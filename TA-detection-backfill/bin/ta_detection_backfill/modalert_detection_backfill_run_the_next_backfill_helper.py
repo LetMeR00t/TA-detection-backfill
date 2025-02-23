@@ -68,7 +68,7 @@ def process_event(helper, *args, **kwargs):
     logger_file.debug("001","Connecting to Splunk API with the app context set to {app}...".format(app=app))
     try:
         spl_detection_backfill = client.connect(app=app, owner=owner, token=token)
-        logger_file.debug("002","Connected to Splunk API successfully")
+        logger_file.debug("002","Successful connection to Splunk API")
     except Exception as e:
         logger_file.error("003","{}".format(e.msg))
 
@@ -108,7 +108,7 @@ def process_event(helper, *args, **kwargs):
         logger_file.debug("007","Connecting to Splunk API with the app context set to {app}...".format(app=app))
         try:
             spl = client.connect(app=app, owner=owner, token=token)
-            logger_file.debug("008","Connected to Splunk API successfully")
+            logger_file.debug("008","Successful connection to Splunk API")
         except Exception as e:
             logger_file.error("009","{}".format(e.msg))
 

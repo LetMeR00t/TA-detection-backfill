@@ -3,12 +3,15 @@
 # Author: Alexandre Demeyer <letmer00t@gmail.com>
 # Inspired by: Donald Murchison
 
+import json
+import uuid
 import globals
-import sys
 import datetime
 import hashlib
 import random
-from common import LoggerFile, Backlog
+import splunklib.client as client
+from common import Settings, LoggerFile, Backlog
+import tzlocal
 
 def process_event(helper, *args, **kwargs):
     """
@@ -68,20 +71,32 @@ def process_event(helper, *args, **kwargs):
     # Set the current LOG level
     logger = helper._logger
     logger_file = LoggerFile(logger, "CAA-AHTTTB")
-    helper.log_info("[CAA-ABTTB-001] LOG level to: " + helper.log_level)
+    helper.log_info("[CAA-AHTTTB-000] LOG level to: " + helper.log_level)
     helper.set_log_level(helper.log_level)
 
     # Build the context around the Splunk instance
+    owner = helper.settings["owner"]
     spl_token = helper.settings["sessionKey"] if "sessionKey" in helper.settings else helper.settings["session_key"]
     sid = helper.settings["sid"]
     globals.log_context = "[sid={0}]".format(sid)
     # Default app is the current one
     app = "TA-detection-backfill"
 
+    # Try to connect to the Splunk API for the Detection Backfill app
+    logger_file.debug("001","Connecting to Splunk API with the app context set to {app}...".format(app=app))
+    try:
+        spl_detection_backfill = client.connect(app=app, owner=owner, token=spl_token)
+        logger_file.debug("002","Successful connection to Splunk API")
+    except Exception as e:
+        logger_file.error("003","{}".format(e.msg))
+
     # Initialize the backlog
     lookup_file_name = "detection_backfill_healthcheck_backlog.csv"
     lookup_headers= ["hc_uid", "hc_created_time","hc_created_author", "batch_name", "batch_priority", "orig_exec_time", "orig_search_id", "app", "savedsearch_name", "orig_search_et", "orig_search_lt", "orig_scan_count", "orig_event_count", "orig_result_count"]
     backlog = Backlog(name="Backlog - Healthcheck", lookup_file_name=lookup_file_name ,lookup_headers=lookup_headers ,spl_token=spl_token ,logger=logger)
+
+    # Get settings
+    configuration = Settings(spl_detection_backfill, helper.settings, logger)
 
     # Initialize batch
     batch_priority = int(helper.get_param("batch_priority"))
@@ -120,7 +135,7 @@ def process_event(helper, *args, **kwargs):
         orig_sid = event["search_id"].replace("'","")
 
         # Initialize backfill
-        hc_uid = hashlib.sha256((orig_sid+str(now)+str(random.randrange(0,1000000000))).encode('utf-8')).hexdigest()[:16]
+        hc_uid = str(uuid.uuid4())
 
         # Initialize task
         task = {
@@ -144,5 +159,36 @@ def process_event(helper, *args, **kwargs):
     
     # Add tasks to the backlog
     backlog.add(tasks)
+
+    # Log all the information in order to retrieve the results in a dedicated dashboard
+    for task in tasks:
+        report_uuid = str(uuid.uuid4())
+        event_message = {
+            "uid": report_uuid,
+            "healthcheck_uid": task["hc_uid"],
+            "type": "report",
+            "created_time": task["hc_created_time"],
+            "created_author": task["hc_created_author"],
+            "job": {
+                "type": "orig_job",
+                "sid": task["orig_search_id"],
+                "timestamp": int(task["orig_exec_time"]),
+                "timestamp_readable": datetime.datetime.fromtimestamp(task["orig_exec_time"],tz=tzlocal.get_localzone()).strftime("%c %z"),
+                "scan_count": task["orig_scan_count"],
+                "event_count": task["orig_event_count"],
+                "result_count": task["orig_result_count"]
+            },
+            "app": task["app"],
+            "savedsearch_name": task["savedsearch_name"],
+        }
+
+        # Add event to be indexed
+        logger_file.debug("025",f"Creating a new 'report' event ({report_uuid}) to be indexed...")
+        helper.addevent(raw=json.dumps(event_message), sourcetype="detection_backfill:healthcheck:report")
+
+    # Index events
+    index_results = configuration.additional_parameters["index_results"]
+    logger_file.debug("040",f"Write all 'report' events to the index {index_results}...")
+    helper.writeevents(index=index_results, host=helper.settings["server_host"], source="app:detection_backfill")
 
     return 0

@@ -3,6 +3,7 @@
 
 # Author: Alexandre Demeyer <letmer00t@gmail.com>
 
+import uuid
 import globals
 import sys
 import datetime
@@ -51,7 +52,7 @@ def process_event(helper, *args, **kwargs):
     # Set the current LOG level
     logger = helper._logger
     logger_file = LoggerFile(logger, "CAA-RHMS")
-    helper.log_info("[CAA-RTNB-000] LOG level to: " + helper.log_level)
+    helper.log_info("[CAA-RHMS-000] LOG level to: " + helper.log_level)
     helper.set_log_level(helper.log_level)
 
     # Build the context around the Splunk instance
@@ -67,7 +68,7 @@ def process_event(helper, *args, **kwargs):
     logger_file.debug("001","Connecting to Splunk API with the app context set to {app}...".format(app=app))
     try:
         spl_detection_backfill = client.connect(app=app, owner=owner, token=spl_token)
-        logger_file.debug("002","Connected to Splunk API successfully")
+        logger_file.debug("002","Successful connection to Splunk API")
     except Exception as e:
         logger_file.error("003","{}".format(e.msg))
 
@@ -123,7 +124,7 @@ def process_event(helper, *args, **kwargs):
                 logger_file.debug("007","Connecting to Splunk API with the app context set to {app}...".format(app=app))
                 try:
                     spl = client.connect(app=app, owner=owner, token=spl_token)
-                    logger_file.debug("008","Connected to Splunk API successfully")
+                    logger_file.debug("008","Successful connection to Splunk API")
                 except Exception as e:
                     logger_file.error("009","{}".format(e.msg))
 
@@ -162,35 +163,29 @@ def process_event(helper, *args, **kwargs):
             logger_file.info("040","Healthcheck job '{uid}' for original SID {sid_origin} for the savedsearch '{app}/{savedsearch}' was dispatched. SID of the healthcheck job is '{job_sid}'. First job was run at '{time}' ({time_readable}) with an original scan count was '{scan_count}', event count was '{event_count}' and result count was '{result_count}'".format(uid=hc_uid,sid_origin=sid_origin,app=app,savedsearch=savedsearch_name,job_sid=job.sid,time=timestamp_origin,time_readable=timestamp_origin_readeable,scan_count=scan_count_origin,event_count=event_count_origin,result_count=result_count_origin))
 
             # Log all the information in order to retrieve the results in a dedicated dashboard
+            bind_uuid = str(uuid.uuid4())
 
             event_message = {
-                "type": "healthcheck:job_dispatched",
-                "uid": hc_uid,
+                "uid": bind_uuid,
+                "type": "bind",
+                "healthcheck_uid": hc_uid,
                 "created_time": hc_created_time,
                 "created_author": hc_created_author,
                 "jobs": {
-                    "origin": {
-                        "sid": sid_origin,
-                        "timestamp": timestamp_origin,
-                        "timestamp_readable": timestamp_origin_readeable,
-                        "scan_count": scan_count_origin,
-                        "event_count": event_count_origin,
-                        "result_count": result_count_origin
-                    },
-                    "healthcheck": {
-                        "sid": str(job.sid).replace("'","")
-                    }
+                    "orig_sid": sid_origin,
+                    "healthcheck_sid": str(job.sid).replace("'","")
                 },
                 "app": app,
                 "savedsearch_name": savedsearch_name,
             }
 
             # Add event to be indexed
-            logger_file.debug("045","Creating a 'healthcheck:job_dispatched' event to be indexed...")
-            helper.addevent(raw=json.dumps(event_message), sourcetype="detection_backfill:events")
+            logger_file.debug("045",f"Creating a new 'bind' event ({bind_uuid}) to be indexed...")
+            helper.addevent(raw=json.dumps(event_message), sourcetype="detection_backfill:healthcheck:bind")
         
         # Index events
-        logger_file.debug("050","Write all 'healthcheck:job_dispatched' events to be indexed...")
-        helper.writeevents(index=configuration.additional_parameters["index_results"], host=helper.settings["server_host"], source="app:detection_backfill")
+        index_results = configuration.additional_parameters["index_results"]
+        logger_file.debug("050",f"Write all 'bind' events to the index {index_results}...")
+        helper.writeevents(index=index_results, host=helper.settings["server_host"], source="app:detection_backfill")
 
     return 0

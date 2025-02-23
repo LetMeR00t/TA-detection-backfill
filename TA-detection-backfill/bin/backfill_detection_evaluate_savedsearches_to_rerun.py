@@ -36,7 +36,7 @@ if __name__ == '__main__':
     logger_file.info("005","Connecting to Splunk API...")
     try:
         spl = client.connect(token=settings["sessionKey"])
-        logger_file.info("006","Connected to Splunk API successfully")
+        logger_file.info("006","Successful connection to Splunk API")
     except Exception as e:
         logger_file.error("007","{}".format(e.msg))
 

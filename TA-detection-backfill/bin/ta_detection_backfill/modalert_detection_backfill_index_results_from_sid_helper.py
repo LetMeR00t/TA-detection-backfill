@@ -3,6 +3,7 @@
 
 # Author: Alexandre Demeyer <letmer00t@gmail.com>
 
+import uuid
 import globals
 import json
 import hashlib
@@ -50,7 +51,7 @@ def process_event(helper, *args, **kwargs):
     # Set the current LOG level
     logger = helper._logger
     logger_file = LoggerFile(logger, "CAA-IRFS")
-    helper.log_info("[CAA-RTNB-000] LOG level to: " + helper.log_level)
+    helper.log_info("[CAA-IRFS-000] LOG level to: " + helper.log_level)
     helper.set_log_level(helper.log_level)
 
     # Build the context around the Splunk instance
@@ -67,7 +68,7 @@ def process_event(helper, *args, **kwargs):
     logger_file.debug("001","Connecting to Splunk API with the app context set to {app}...".format(app=app))
     try:
         spl_detection_backfill = client.connect(app=app, owner=owner, token=token)
-        logger_file.debug("002","Connected to Splunk API successfully")
+        logger_file.debug("002","Successful connection to Splunk API")
     except Exception as e:
         logger_file.error("003","{}".format(e.msg))
 
@@ -81,7 +82,7 @@ def process_event(helper, *args, **kwargs):
     logger_file.debug("007","Connecting to Splunk API with the app context set to {app}...".format(app=app))
     try:
         spl = client.connect(app=app, owner=owner, token=token)
-        logger_file.debug("008","Connected to Splunk API successfully")
+        logger_file.debug("008","Successful connection to Splunk API")
     except Exception as e:
         logger_file.error("009","{}".format(e.msg))
 
@@ -105,6 +106,7 @@ def process_event(helper, *args, **kwargs):
             sid = event["search_id"].replace("'","")
 
             logger_file.debug("020","Try to get the job from the SID '{sid}'...".format(sid=sid))
+
             # Get the job results
             job = spl.job(sid=sid)
 
@@ -120,14 +122,19 @@ def process_event(helper, *args, **kwargs):
                     logger_file.warn("050",'%s: %s' % (result.type, result.message))
                 elif isinstance(result, dict):
                     # Normal events are returned as dicts
+                    result_uuid = str(uuid.uuid4())
                     result_formatted = {
-                        "type": "healthcheck:job_result",
-                        "sid": sid,
-                        "result_sha256": hashlib.sha256(str(result).encode('utf-8')).hexdigest(),
+                        "uid": result_uuid,
+                        "type": "result",
+                        "healthcheck_uid": event["healthcheck_uid"],
+                        "job": {
+                            "sid": sid
+                        },
+                        "result_hash": hashlib.sha256(str(result).encode('utf-8')).hexdigest(),
                         "result": result
                     }
                     # Add for indexation
-                    helper.addevent(raw=json.dumps(result_formatted), sourcetype="detection_backfill:events")
+                    helper.addevent(raw=json.dumps(result_formatted), sourcetype="detection_backfill:healthcheck:result")
                 else:
                     logger_file.error("60","An expected behavior occured during processing of: %s" % result)
 
@@ -135,7 +142,8 @@ def process_event(helper, *args, **kwargs):
             logger_file.debug("060","No 'search_id' field found in the event: " + str(event)+", skipped...")
 
     # Once all events were processed, index all the results
-    logger_file.debug("070","Write events to be indexed...")
-    helper.writeevents(index=configuration.additional_parameters["index_results"], host=helper.settings["server_host"], source="app:detection_backfill")
+    index_results = configuration.additional_parameters["index_results"]
+    logger_file.debug("070",f"Write all 'result' events to the index {index_results}...")
+    helper.writeevents(index=index_results, host=helper.settings["server_host"], source="app:detection_backfill")
 
     return 0
